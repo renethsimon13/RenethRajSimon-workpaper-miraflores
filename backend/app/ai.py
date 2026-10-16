@@ -157,8 +157,10 @@ def _pick_gemini_model() -> str:
     try:
         r = httpx.get(f"{GEMINI_BASE}/models", headers=_gemini_headers(), params={"pageSize": 200}, timeout=20)
         r.raise_for_status()
+        bad = ("tts", "image", "audio", "live", "embed", "vision", "robotics", "computer-use", "native")
         names = [m["name"].split("/", 1)[1] for m in r.json().get("models", [])
-                 if "generateContent" in (m.get("supportedGenerationMethods") or [])]
+                 if "generateContent" in (m.get("supportedGenerationMethods") or [])
+                 and not any(b in m["name"].lower() for b in bad)]  # text models only
     except Exception:
         names = []
     if preferred and (not names or preferred in names):
@@ -230,8 +232,12 @@ def _call_model(system: str, user: str):
                 last = r
                 continue
             r.raise_for_status()
-            parts = r.json()["candidates"][0].get("content", {}).get("parts", [])
-            return "".join(pt.get("text", "") for pt in parts), f"gemini:{model}"
+            parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+            text = "".join(pt.get("text", "") for pt in parts).strip()
+            if not text:  # empty answer counts as a failure: try the next model
+                last = httpx.Response(502, json={"error": {"message": f"{model} returned no text"}}, request=httpx.Request("POST", GEMINI_BASE))
+                continue
+            return text, f"gemini:{model}"
         if last is not None:
             last.raise_for_status()
     return None, None
