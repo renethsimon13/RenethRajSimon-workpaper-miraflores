@@ -138,7 +138,43 @@ def retrieve(s: State, question: str, focus: str | None = None, limit: int = 14)
 STOP = set("schedule return engine number workpaper line lines amount drop dropped change changed value form tax 2025 the and for with that this what why how does did was were are is from into have has had about which there their they them our your you why when where who whom than then also just only into over under more less much many any all some each per its it's not but can could would should will shall may might must".split())
 
 
+GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
+_gemini_model: str | None = None
+
+
+def _gemini_headers():
+    # The key travels in a header, never in the URL, so it can't leak into error messages or logs.
+    return {"x-goog-api-key": os.environ["GEMINI_API_KEY"], "content-type": "application/json"}
+
+
+def _pick_gemini_model() -> str:
+    """Ask Google which models this key can use and pick a current 'flash' model (cheap, fast)."""
+    global _gemini_model
+    if _gemini_model:
+        return _gemini_model
+    preferred = os.environ.get("AI_MODEL_GEMINI")
+    try:
+        r = httpx.get(f"{GEMINI_BASE}/models", headers=_gemini_headers(), params={"pageSize": 200}, timeout=20)
+        r.raise_for_status()
+        names = [m["name"].split("/", 1)[1] for m in r.json().get("models", [])
+                 if "generateContent" in (m.get("supportedGenerationMethods") or [])]
+    except Exception:
+        names = []
+    if preferred and (not names or preferred in names):
+        _gemini_model = preferred
+    else:
+        flash = [n for n in names if "flash" in n and "lite" not in n and "image" not in n and "tts" not in n and "exp" not in n]
+        stable = [n for n in flash if "preview" not in n] or flash
+        _gemini_model = sorted(stable, key=lambda n: ("latest" not in n, n), reverse=False)[-1] if stable else (names[0] if names else "gemini-2.5-flash")
+        # prefer an explicit '-latest' alias when Google offers one
+        latest = [n for n in stable if n.endswith("flash-latest")]
+        if latest:
+            _gemini_model = latest[0]
+    return _gemini_model
+
+
 def _call_model(system: str, user: str):
+    global _gemini_model
     if os.environ.get("ANTHROPIC_API_KEY"):
         r = httpx.post("https://api.anthropic.com/v1/messages", timeout=60, headers={
             "x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01", "content-type": "application/json"},
@@ -146,13 +182,39 @@ def _call_model(system: str, user: str):
         r.raise_for_status()
         return "".join(b.get("text", "") for b in r.json()["content"]), f"anthropic:{ANTHROPIC_MODEL}"
     if os.environ.get("GEMINI_API_KEY"):
-        r = httpx.post(f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent", timeout=60,
-                       params={"key": os.environ["GEMINI_API_KEY"]},
-                       json={"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
-                             "generationConfig": {"maxOutputTokens": 900, "temperature": 0.2}})
-        r.raise_for_status()
-        return "".join(pt.get("text", "") for pt in r.json()["candidates"][0]["content"]["parts"]), f"gemini:{GEMINI_MODEL}"
+        body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
+                "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2}}
+        for attempt in range(2):
+            model = _pick_gemini_model()
+            r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=60)
+            if r.status_code == 404 and attempt == 0:
+                _gemini_model = None  # model retired: rediscover once
+                os.environ.pop("AI_MODEL_GEMINI", None)
+                continue
+            r.raise_for_status()
+            parts = r.json()["candidates"][0].get("content", {}).get("parts", [])
+            return "".join(pt.get("text", "") for pt in parts), f"gemini:{model}"
     return None, None
+
+
+def _safe_error(ex: Exception) -> str:
+    """Errors shown to users and stored in the log never include URLs, keys or tokens."""
+    if isinstance(ex, httpx.HTTPStatusError):
+        msg = f"provider returned HTTP {ex.response.status_code}"
+        try:
+            detail = ex.response.json().get("error", {})
+            if isinstance(detail, dict) and detail.get("message"):
+                msg += f": {detail['message'][:160]}"
+        except Exception:
+            pass
+    else:
+        msg = type(ex).__name__
+    for k in ("GEMINI_API_KEY", "ANTHROPIC_API_KEY"):
+        v = os.environ.get(k)
+        if v:
+            msg = msg.replace(v, "[key]")
+    import re as _re
+    return _re.sub(r"https?://\S+", "[url]", msg)
 
 
 def available():
@@ -178,7 +240,7 @@ def answer(s: State, question: str, mode: str = "ask", focus: str | None = None)
     try:
         text, model = _call_model(SYSTEM, user)
     except Exception as ex:  # network/key problems must not break the workpaper
-        error = f"{type(ex).__name__}: {str(ex)[:200]}"
+        error = _safe_error(ex)
     cited = re.findall(r"\[([a-z]+:[^\]\s]+)\]", text or "")
     valid = [c for c in dict.fromkeys(cited) if c in ev]
     unverified = [c for c in dict.fromkeys(cited) if c not in ev]
