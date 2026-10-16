@@ -209,7 +209,9 @@ export function Firm() {
     const rules = s.rules.map((r: string) => r.includes('requires partner sign-off') ? `Any adjustment with a tax effect over ${Number(v.thr).toLocaleString()} (federal or state) requires partner sign-off.` : r)
     send({ type: 'standards.updated', payload: { standards: { variance_review: { ...s.variance_review, flag_if_change_over_percent: Number(v.pct), and_over_amount: Number(v.amt) }, verification_types: v.vt.split(',').map((x: string) => x.trim()).filter(Boolean), rules } } }, 'Firm standards updated')
   }
-  const admin = async (path: string, label: string) => { try { await post(path, {}); await refresh(); toast(label) } catch (e: Any) { toast('⚠ ' + e.message) } }
+  const [busy, setBusy] = useState<string | null>(null)
+  const [armReset, setArmReset] = useState(false)
+  const admin = async (path: string, label: string, key: string) => { setBusy(key); try { await post(path, {}); await refresh(); toast(label) } catch (e: Any) { toast('⚠ ' + e.message) } setBusy(null); setArmReset(false) }
   return <div>
     <h1>Firm</h1>
     <div className="grid g2">
@@ -227,7 +229,9 @@ export function Firm() {
           <p className="small muted">Retention: records kept 7 years after filing (to 2033), then destroyed — per firm rule.</p></div>
         <div className="card" style={{ marginTop: 14 }}><h2 style={{ marginTop: 0 }}>Demo data</h2>
           <p className="small">The packet itself is never modified. "Load demo season" replays a plausible March–June of team work (accepted findings, approvals, a reopened sign-off, blocking review notes). "Reset" returns to the bare packet.</p>
-          <div className="row"><button className="btn" disabled={!can(role, 'admin')} onClick={() => admin('/api/admin/seed', 'Demo season loaded')}>Load demo season</button><button className="btn danger" disabled={!can(role, 'admin')} onClick={() => admin('/api/admin/reset', 'Reset to bare packet')}>Reset</button></div>
+          <div className="row"><button className="btn pri" disabled={!can(role, 'admin') || !!busy} onClick={() => admin('/api/admin/seed', 'Demo season loaded — open Overview to see it', 'seed')}>{busy === 'seed' ? 'Loading demo season…' : 'Load demo season'}</button>
+            {!armReset ? <button className="btn danger" disabled={!can(role, 'admin') || !!busy} onClick={() => setArmReset(true)}>Reset…</button> :
+              <><button className="btn danger" disabled={!!busy} onClick={() => admin('/api/admin/reset', 'Reset to bare packet', 'reset')}>{busy === 'reset' ? 'Resetting…' : 'Yes, erase all workpaper events'}</button><button className="btn" onClick={() => setArmReset(false)}>Cancel</button></>}</div>
           <p className="small muted">Packet: {boot.packet.name} v{boot.packet.version} · sha256 {boot.packet.sha256}</p></div>
       </div>
     </div>

@@ -662,7 +662,19 @@ CHECKS = [
 ]
 
 
+_RUN_CACHE: dict = {}
+
+
 def run_checks(p: Packet):
+    """Findings depend only on the packet, which never changes, so compute once per packet."""
+    if id(p) in _RUN_CACHE:
+        return _RUN_CACHE[id(p)]
+    out = _run_checks(p)
+    _RUN_CACHE[id(p)] = out
+    return out
+
+
+def _run_checks(p: Packet):
     out, seen = [], set()
     for c in CHECKS:
         try:

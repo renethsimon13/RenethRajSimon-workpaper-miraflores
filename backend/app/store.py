@@ -100,6 +100,21 @@ def append(actor: str, type_: str, payload: dict, entity: str | None = None, bat
     return ev
 
 
+def append_many(items: list[dict]):
+    """One transaction for many events (used by the demo seed)."""
+    global _cache
+    with _lock:
+        with engine.begin() as c:
+            c.execute(insert(events), [{"ts": e["ts"], "actor": e["actor"], "type": e["type"], "entity": e.get("entity"),
+                                        "batch": e.get("batch"), "payload": json.dumps(e["payload"])} for e in items])
+        _cache = None
+    for fn in list(_listeners):
+        try:
+            fn({"id": 0, "type": "seed", "actor": "system"})
+        except Exception:
+            pass
+
+
 def reset():
     global _cache
     with _lock:
@@ -107,6 +122,11 @@ def reset():
             c.execute(events.delete())
             c.execute(files.delete())
         _cache = []
+    for fn in list(_listeners):
+        try:
+            fn({"id": 0, "type": "reset", "actor": "system"})
+        except Exception:
+            pass
 
 
 def save_file(name, mime, data: bytes, uploaded_by) -> dict:

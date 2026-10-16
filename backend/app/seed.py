@@ -26,11 +26,20 @@ REASONS = {
 }
 
 
-def seed(P, state):
+def seed(P, _state=None):
+    """Builds the whole season in memory, then writes it in one transaction (fast on a remote database)."""
+    from .state import State
+    buf: list[dict] = []
+
+    def state():
+        return State(P, list(buf))
+
     findings = {f["id"]: f for f in state().findings_base}
 
     def ev(actor, t, payload, ts, batch=None, entity=None):
-        return store.append(actor, t, payload, entity, batch, ts=ts)
+        e = {"id": len(buf) + 1, "ts": ts, "actor": actor, "type": t, "entity": entity, "batch": batch, "payload": payload}
+        buf.append(e)
+        return e
 
     def accept(fid, actor, ts):
         f = findings[fid]
@@ -126,3 +135,5 @@ def seed(P, state):
     ev(PRI, "question.asked", {"id": store.new_id("ques"), "to": "st-03", "target": "finding:CA_ESTIMATES_VS_FTB",
                               "text": "FTB holds the 9/15/2025 3,500 as a 2024 credit. Request a transfer to 2025 before filing, or claim 10,500?"}, "2026-06-24T15:30:00Z")
     time(PRI, "pass_throughs_and_basis", 1.5, "2026-06-24T16:00:00Z", "Ridgeline K-1 (late), Woodworks basis with 2023 K-1")
+
+    store.append_many(buf)
