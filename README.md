@@ -1,5 +1,7 @@
 # Miraflores — web-native tax workpaper (Okafor-Lindqvist 2025)
 
+[![CI](https://github.com/renethsimon13/renethrajsimon-workpaper-miraflores/actions/workflows/ci.yml/badge.svg)](https://github.com/renethsimon13/renethrajsimon-workpaper-miraflores/actions/workflows/ci.yml)
+
 **Live app:** _add Render URL_ · **Video walkthrough:** _add video link_
 
 A working workpaper for one complex household's 2025 return, built from the purpose rather than the spreadsheet. The packet is loaded as delivered; every human action is an append-only event; every screen is a view of packet + events.
@@ -23,6 +25,10 @@ A working workpaper for one complex household's 2025 return, built from the purp
 | Firm standards (editable by the administrator), masking with view log, retention, search | Firm · search bar |
 
 Use the **Viewing as** switcher to act as preparer (Priya), uncleared preparer (Marcus), reviewer (Daniel), partner (Helen), administrator (Jo), quality reviewer (Sam) or the clients (Ngozi, Erik). Rules are enforced by the server, not the UI.
+
+## Tests
+
+`cd backend && pytest -q` — 24 tests: every planted error is found from the data alone, firm rules hold server-side (no self-review, partner threshold, authority on judgments, masking with view log, sign-offs reopen, bulk undo), adjustments propagate, and the full filing lifecycle (gates → client approval → blocked by review notes → transmit → frozen → rejection → SSN fix → accepted → amendment). Runs on every push (badge above).
 
 ## Run locally
 
