@@ -140,6 +140,7 @@ STOP = set("schedule return engine number workpaper line lines amount drop dropp
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 _gemini_model: str | None = None
+_gemini_candidates: list[str] = []
 
 
 def _gemini_headers():
@@ -149,7 +150,7 @@ def _gemini_headers():
 
 def _pick_gemini_model() -> str:
     """Ask Google which models this key can use and pick a current 'flash' model (cheap, fast)."""
-    global _gemini_model
+    global _gemini_model, _gemini_candidates
     if _gemini_model:
         return _gemini_model
     preferred = os.environ.get("AI_MODEL_GEMINI")
@@ -170,6 +171,9 @@ def _pick_gemini_model() -> str:
         latest = [n for n in stable if n.endswith("flash-latest")]
         if latest:
             _gemini_model = latest[0]
+    # fallbacks when the first choice is busy: other flash models, then flash-lite
+    lite = [n for n in names if "flash-lite" in n and "preview" not in n]
+    _gemini_candidates = [_gemini_model] + [n for n in (sorted(stable if names else [], reverse=True) + lite) if n != _gemini_model][:3]
     return _gemini_model
 
 
@@ -184,16 +188,30 @@ def _call_model(system: str, user: str):
     if os.environ.get("GEMINI_API_KEY"):
         body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
                 "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2}}
-        for attempt in range(2):
-            model = _pick_gemini_model()
-            r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=60)
-            if r.status_code == 404 and attempt == 0:
-                _gemini_model = None  # model retired: rediscover once
+        import time
+        first = _pick_gemini_model()
+        tried, last = [], None
+        for model in (_gemini_candidates or [first]):
+            for attempt in range(2):
+                r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=45)
+                if r.status_code in (429, 500, 503) and attempt == 0:
+                    time.sleep(2)  # busy: one short retry, then try the next model
+                    continue
+                break
+            tried.append(model)
+            if r.status_code == 404:
+                _gemini_model = None
                 os.environ.pop("AI_MODEL_GEMINI", None)
+                last = r
+                continue
+            if r.status_code in (429, 500, 503):
+                last = r
                 continue
             r.raise_for_status()
             parts = r.json()["candidates"][0].get("content", {}).get("parts", [])
             return "".join(pt.get("text", "") for pt in parts), f"gemini:{model}"
+        if last is not None:
+            last.raise_for_status()
     return None, None
 
 
