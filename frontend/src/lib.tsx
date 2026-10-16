@@ -8,11 +8,19 @@ export const getPerson = () => currentPerson
 export function setPersonGlobal(p: string) { currentPerson = p; try { localStorage.setItem('wp.person', p) } catch {} }
 
 export async function api(path: string, opts: RequestInit = {}): Promise<Any> {
-  const r = await fetch(path, { ...opts, headers: { 'X-Person': currentPerson, ...(opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(opts.headers || {}) } })
+  let r: Response
+  try {
+    r = await fetch(path, { ...opts, headers: { 'X-Person': currentPerson, ...(opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}), ...(opts.headers || {}) } })
+  } catch {
+    throw new Error('Cannot reach the server. It may be restarting after an update; try again in a minute.')
+  }
   const text = await r.text()
   let data: Any = null
   try { data = text ? JSON.parse(text) : null } catch { data = text }
-  if (!r.ok) throw new Error((data && data.detail) || r.statusText)
+  if (!r.ok) {
+    if (r.status >= 502 && r.status <= 504) throw new Error('The server is restarting or busy (HTTP ' + r.status + '). Try again in a minute.')
+    throw new Error((data && data.detail) || r.statusText || ('HTTP ' + r.status))
+  }
   return data
 }
 export const post = (path: string, body: Any) => api(path, { method: 'POST', body: JSON.stringify(body) })
