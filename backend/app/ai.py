@@ -187,20 +187,25 @@ def _call_model(system: str, user: str):
         return "".join(b.get("text", "") for b in r.json()["content"]), f"anthropic:{ANTHROPIC_MODEL}"
     if os.environ.get("GEMINI_API_KEY"):
         body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
-                "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2}}
+                "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2,
+                                     # short, cited answers don't need hidden "thinking", which is what makes flash models slow
+                                     "thinkingConfig": {"thinkingBudget": 0}}}
         import time
         first = _pick_gemini_model()
         tried, last = [], None
-        deadline = time.monotonic() + 35  # never keep the reviewer waiting more than ~35 seconds
+        deadline = time.monotonic() + 55  # never keep the reviewer waiting more than about a minute
         for model in (_gemini_candidates or [first]):
             if time.monotonic() > deadline:
                 break
             for attempt in range(2):
                 remaining = max(5.0, deadline - time.monotonic())
                 try:
-                    r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=min(25.0, remaining))
+                    r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=min(40.0, remaining))
                 except httpx.TimeoutException:
-                    r = httpx.Response(503, json={"error": {"message": "the model took too long to answer"}}, request=httpx.Request("POST", GEMINI_BASE))
+                    r = httpx.Response(503, json={"error": {"message": f"{model} took too long to answer"}}, request=httpx.Request("POST", GEMINI_BASE))
+                if r.status_code == 400 and "thinking" in r.text.lower() and "thinkingConfig" in body["generationConfig"]:
+                    body["generationConfig"].pop("thinkingConfig")  # this model can't switch thinking off: ask again without the setting
+                    continue
                 if r.status_code in (429, 500, 503) and attempt == 0 and time.monotonic() + 8 < deadline:
                     time.sleep(2)  # busy: one short retry, then try the next model
                     continue
@@ -211,7 +216,7 @@ def _call_model(system: str, user: str):
                 os.environ.pop("AI_MODEL_GEMINI", None)
                 last = r
                 continue
-            if r.status_code in (429, 500, 503):
+            if r.status_code in (429, 500, 503, 400):
                 last = r
                 continue
             r.raise_for_status()
