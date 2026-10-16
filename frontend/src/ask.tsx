@@ -31,12 +31,16 @@ export function AskPanel() {
     window.addEventListener('wp-ask', on)
     return () => window.removeEventListener('wp-ask', on)
   }, [])
+  const [secs, setSecs] = useState(0)
+  useEffect(() => { if (!busy) return; setSecs(0); const t = setInterval(() => setSecs(x => x + 1), 1000); return () => clearInterval(t) }, [busy])
   if (!open) return null
-  const run = async (question = q) => {
+  const run = async (question = q, m = mode) => {
+    if (!question && m === 'ask') return
     setBusy(true); setRes(null)
-    try { setRes(await post('/api/ask', { question, mode, focus })) } catch (e: Any) { toast('⚠ ' + e.message) }
+    try { setRes(await post('/api/ask', { question, mode: m, focus })) } catch (e: Any) { toast('⚠ Ask failed: ' + e.message) }
     setBusy(false)
   }
+  const pick = (s: string) => { setMode('ask'); setQ(s); run(s, 'ask') }
   const target = focus || (res?.citations || []).find((c: string) => c.startsWith('line:') || c.startsWith('finding:') || c.startsWith('doc:')) || 'area:return_summary'
   const draftBody = (res?.answer || '').split(/\nWhy:/)[0].replace(/\[[a-z]+:[^\]\s]+\]/g, '').trim()
   return <div className="ask">
@@ -46,9 +50,9 @@ export function AskPanel() {
         <select className="btn sm" value={mode} onChange={e => setMode(e.target.value)}><option value="ask">Ask a question</option><option value="draft_client_question">Draft a client question</option><option value="draft_notice_response">Draft IRS notice response</option></select>
         {focus && <span className="chip acc">about {focus} <a style={{ cursor: 'pointer', marginLeft: 4 }} onClick={() => setFocus(null)}>✕</a></span>}
       </div>
-      {!res && !busy && <div className="small muted">Answers come only from this workpaper's evidence, every sentence cites its source, and any citation outside that evidence is flagged. Nothing is saved unless you save it.
-        <div style={{ marginTop: 8 }}>{SUGGEST.map(s => <div key={s}><a style={{ cursor: 'pointer' }} onClick={() => { setQ(s); run(s) }}>{s}</a></div>)}</div></div>}
-      {busy && <div className="muted">Reading the evidence…</div>}
+      {!res && !busy && <div className="small muted">Answers come only from this workpaper's evidence, every sentence cites its source, and any citation outside that evidence is flagged. Nothing is saved unless you save it.</div>}
+      {!busy && <div className="row" style={{ gap: 6, margin: '8px 0 10px' }}>{SUGGEST.map(s => <button key={s} type="button" className="chip acc" style={{ whiteSpace: 'normal', textAlign: 'left' }} onClick={() => pick(s)}>{s}</button>)}</div>}
+      {busy && <div className="muted">Reading the evidence and asking the model… {secs}s{secs > 12 ? ' (the provider is slow or busy; trying a backup model)' : ''}</div>}
       {res && <div>
         <Cited text={res.answer} valid={res.citations} />
         {res.unverified?.length > 0 && <div className="banner warn small" style={{ marginTop: 8 }}>{res.unverified.length} citation(s) were not in the evidence and are marked unverified. Treat those statements as unsupported.</div>}

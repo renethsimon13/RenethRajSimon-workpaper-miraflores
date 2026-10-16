@@ -191,10 +191,17 @@ def _call_model(system: str, user: str):
         import time
         first = _pick_gemini_model()
         tried, last = [], None
+        deadline = time.monotonic() + 35  # never keep the reviewer waiting more than ~35 seconds
         for model in (_gemini_candidates or [first]):
+            if time.monotonic() > deadline:
+                break
             for attempt in range(2):
-                r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=45)
-                if r.status_code in (429, 500, 503) and attempt == 0:
+                remaining = max(5.0, deadline - time.monotonic())
+                try:
+                    r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=min(25.0, remaining))
+                except httpx.TimeoutException:
+                    r = httpx.Response(503, json={"error": {"message": "the model took too long to answer"}}, request=httpx.Request("POST", GEMINI_BASE))
+                if r.status_code in (429, 500, 503) and attempt == 0 and time.monotonic() + 8 < deadline:
                     time.sleep(2)  # busy: one short retry, then try the next model
                     continue
                 break
