@@ -29,7 +29,7 @@ Use the **Viewing as** switcher to act as preparer (Priya), uncleared preparer (
 
 ## Tests
 
-`cd backend && pytest -q` — 24 tests: every planted error is found from the data alone, firm rules hold server-side (no self-review, partner threshold, authority on judgments, masking with view log, sign-offs reopen, bulk undo), adjustments propagate, and the full filing lifecycle (gates → client approval → blocked by review notes → transmit → frozen → rejection → SSN fix → accepted → amendment). Runs on every push (badge above).
+`cd backend && pytest -q` — 28 tests: every planted error is found from the data alone, firm rules hold server-side (no self-review, partner threshold, authority on judgments, masking with view log, sign-offs reopen, bulk undo), adjustments propagate, and the full filing lifecycle (gates → client approval → blocked by review notes → transmit → frozen → rejection → SSN fix → accepted → amendment). Runs on every push (badge above).
 
 ## Run locally
 

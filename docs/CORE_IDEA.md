@@ -57,6 +57,4 @@ The event types are `adjustment.proposed/approved/reversed`, `verification.added
 - **Identity is stubbed for the prototype.** The role switcher sends an `X-Person` header with no login. The server enforces every rule *given* that identity. In production this becomes SSO, with the person taken from the session rather than a header.
 - **Storage is Postgres in production and SQLite locally**, with a single append-only table plus a file table for attachments. Live collaboration uses server-sent events: every write notifies open browsers, which refresh their view.
 
-## How AI was used
-
 Direction, scope and design decisions were mine; Claude was used mainly to generate code, and I verified the output against the packet myself.

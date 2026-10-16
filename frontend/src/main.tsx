@@ -21,7 +21,6 @@ function Shell() {
   const [res, setRes] = useState<Any[]>([])
   const seenRef = useRef<number>(0)
   useEffect(() => { if (!q || q.length < 2 || role === 'client') { setRes([]); return } const t = setTimeout(() => api('/api/search?q=' + encodeURIComponent(q)).then(setRes).catch(() => setRes([])), 200); return () => clearTimeout(t) }, [q])
-  // mark "seen" when the person looks at the overview, so "changes since I last looked" means something
   // 'Seen' is recorded only when the person clicks 'Mark all as seen' (Timeline → since)
   if (!boot || !st) return <div className="empty">Loading workpaper…</div>
   const client = role === 'client'
