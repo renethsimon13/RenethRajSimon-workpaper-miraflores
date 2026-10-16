@@ -29,7 +29,7 @@ All of these come from the **Findings** page, whose independent checks run on lo
 | 20 | California Schedule S credit claimed for the Oregon composite tax. Oregon is a reverse-credit state: California residents claim that credit on the Oregon return instead. | 844 → 0 | D39 p2, ScheduleS.credit | | +844 | State-credit rule check. *(Found by the blind review.)* |
 | 18 | Child-care provider: Little Sprouts' tax ID has two digits swapped, and Bright Oak's name is wrong on the return | 74-3829516 → 74-3829156 | D62, D61 | 0 | | Extracted value not found on its page. |
 
-**Net of the approved demo-season fixes (before the SEP and Oregon items):** federal tax falls by about 8,150 and the return goes from about 4,220 owed to about a 2,930 refund. California tax falls by about 5,660. These are linear estimates, and several changes cross thresholds (CTC phase-out, SALT cap, QBI), so the engine recompute is final.
+**Net of the approved demo-season fixes (the SEP item still pending):** federal tax falls by about 9,600 and the return goes from about 4,220 owed to about a 4,390 refund; California tax falls by about 5,900. These are linear estimates at v3 rates. Several changes cross thresholds (CTC phase-out, SALT cap, QBI, AMT), so the engine recompute is final. In the app, lines built by plain sums recompute exactly; tax-rule lines show *pending engine recompute*.
 
 One consequence: the scripted 7/20 "federal balance paid" event and the IRS interest and penalty assessment wouldn't happen on the corrected return. The Filing page flags this for the partner.
 

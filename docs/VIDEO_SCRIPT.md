@@ -8,7 +8,7 @@ Record the screen at 1440×900 with the deployed link. Before you start, open **
 
 ## 0:45 — Overview (45s)
 
-- Show the four totals: engine v3 vs the workpaper. "Federal goes from 4,220 owed to a refund after approved corrections."
+- Show the four totals: engine v3 vs the workpaper. "Federal goes from about 4,220 owed to about a 4,400 refund after approved corrections; lines that need the engine are flagged rather than guessed."
 - **Ready to file?** "These are the firm's required steps, evaluated live. Nothing files until they're green."
 - **Work areas:** sign-offs per area, plus time against budget.
 
