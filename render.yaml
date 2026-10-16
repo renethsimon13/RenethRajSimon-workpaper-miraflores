@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: miraflores-workpaper
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # paste the Neon connection string in the Render dashboard
+      - key: SEED_ON_EMPTY
+        value: "1"
