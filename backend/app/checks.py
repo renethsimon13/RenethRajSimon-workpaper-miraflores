@@ -148,6 +148,8 @@ def check_rsu_basis(p: Packet):
                 b = _f(basis)
                 total += b
                 term = "ltcg" if ".E." in l["key"] or ".D." in l["key"] else "stcg"
+                if l["label"].split("sold ")[1][:10] <= "2025-07-14":
+                    term += "/ca_source_income"  # sold while a California resident: fully CA-source
                 proposed.append({"line": l["key"], "delta": -b, "category": term,
                                  "description": f"{lot}: add supplemental adjusted basis {b:,.2f} (vest FMV already in W-2 box 1)"})
                 refs.append(R("line", l["key"]))
@@ -178,7 +180,7 @@ def check_1099k_in_books(p: Packet):
         "return_error",
         f"The Paywell 1099-K ({k['value']:,.0f}) is Atlas Outdoor's card payments. The books deposited them gross inside "
         f"Atlas's {p.ev_field('D15','atlas_total')['value']:,.0f} (also on Atlas's 1099-NEC). Books revenue {books['value']:,.0f} = "
-        "1099-NECs 142,000 + 9,300 from 11 clients without 1099s.",
+        "1099-NECs 142,000 + 9,300 from 11 clients without 1099s. Ask Atlas to correct its 1099-NEC to 28,800 so IRS matching stops.",
         [R("line", "SchC.1"), R("ev", k["id"], doc="D21", page=1), R("ev", inbooks["id"], doc="D15", page=3),
          R("ev", books["id"], doc="D14", page=1), R("doc", "D17", page=1)],
         engine=gross, expected=books["value"],
@@ -227,7 +229,8 @@ def check_business_use(p: Packet):
         out.append(finding(
             "SCHC_BUSINESS_USE", "Phone and internet deducted at 100%; client said 70% and 50%", "business", "error", "return_error",
             f"Telephone {phone:,.0f} is a 4-line family plan (70% business per the client); internet {net:,.0f} is shared "
-            f"home internet (about 50%). Deductible {allowed:,.0f}, not {phone+net:,.0f}.",
+            f"home internet (about 50%). Deductible {allowed:,.0f}, not {phone+net:,.0f}. Note: 70% of a 4-line family plan is "
+            "generous (one line of four is 25%) — document Erik's basis for it.",
             [R("line", "SchC.25"), R("call", "call-01"), R("doc", "D15", page=2), R("ev", p.ev_field("D14", "Telephone")["id"], doc="D14", page=1)],
             engine=p.value("SchC.25"), expected=round(allowed),
             proposed=[{"line": "SchC.25", "delta": delta, "category": "schc_expense", "description": "Apply business-use percentages from the 3/26 call"}],
@@ -254,7 +257,8 @@ def check_sehi(p: Packet):
         "error", "return_error",
         f"Erik could be covered under Ngozi's employer plans all year (qa-25) but kept his own plan. Section 162(l)(2)(B) "
         f"denies the deduction for any month he was eligible to participate in a subsidized employer plan, including a "
-        f"spouse's. The prior preparer applied the same rule in 2024.",
+        f"spouse's. The prior preparer applied the same rule in 2024. Removing it also raises the QBI deduction (about -890 "
+        "federal), which the per-dollar rate does not capture.",
         [R("line", "Sch1.17"), R("qa", "qa-25"), R("doc", "D25", page=1), R("py", "/return_2024/notes/Sch1.17")],
         engine=amt, expected=0,
         proposed=[{"line": "Sch1.17", "delta": -amt, "category": "adjustment", "description": "Disallow SE health insurance (IRC 162(l)(2)(B))"}],
@@ -322,17 +326,16 @@ def check_home_property_tax(p: Packet):
         return []
     right = l["value"] - credit["value"]
     salt_total = p.value("SchA.5a") + right
-    cap = p.value("SchA.5e")
-    reduction = max(0, cap - min(cap, salt_total))
     return [finding(
         "HOME_TAX_PRORATION", "Home property tax ignores the seller's proration credit", "deductions_and_credits", "error",
         "return_error",
         f"The lender paid the full 2025 Travis County bill ({l['value']:,}), but the seller credited the buyers "
-        f"{credit['value']:,} at closing for 1/1-7/7. Only the buyers' share ({right:,.0f}) is deductible. Total SALT "
-        f"falls to {salt_total:,.0f}, under the 40,000 cap, so the deduction drops by {reduction:,.0f}.",
+        f"{credit['value']:,} at closing for 1/1-7/7. Only the buyers' share ({right:,.0f}) is deductible. State and local "
+        f"taxes fall to {salt_total:,.0f}, under the 40,000 cap. Federal effect is about zero: the return is in AMT and taxes "
+        "are an AMT add-back (v3 'salt' rate is 0). California allows property tax, so California tax rises.",
         [R("line", "SchA.5b"), R("ev", credit["id"], doc="D54", page=1), R("doc", "D57", page=1), R("doc", "D58", page=1)],
         engine=l["value"], expected=right,
-        proposed=[{"line": "SchA.5e", "delta": -reduction, "category": "itemized", "description": f"SALT after removing seller-paid tax {credit['value']:,.0f}"}],
+        proposed=[{"line": "SchA.5b", "delta": -credit["value"], "category": "salt", "description": f"Remove seller-paid property tax {credit['value']:,.0f} (closing proration)"}],
         surfaced="Closing statement D54 is 'used' but landed nowhere; document-to-return tracing exposes it.",
         method="closing statement proration vs escrow payment")]
 
@@ -481,8 +484,8 @@ def check_crypto(p: Packet):
         "(the message arrived after the last engine run). Also note: the export says 'FIFO' but the sold lots are not FIFO.",
         [R("line", "F8949.H.C6"), R("msg", "msg-07"), R("doc", "D35", page=1), R("doc", "D34", page=1)],
         engine=f"ST gain {proceeds:,.0f}", expected=f"LT gain {proceeds-basis:,.0f} (if substantiated)",
-        proposed=[{"line": "F8949.H.C6", "delta": -proceeds, "category": "stcg", "description": "Remove as short-term"},
-                  {"line": "F8949.K.total", "delta": proceeds - basis, "category": "ltcg", "description": "Report as long-term, basis 3,050"}],
+        proposed=[{"line": "F8949.H.C6", "delta": -proceeds, "category": "stcg/ca_source_income", "description": "Remove as short-term"},
+                  {"line": "F8949.K.total", "delta": proceeds - basis, "category": "ltcg/ca_source_income", "description": "Report as long-term, basis 3,050"}],
         surfaced="Client messages are evidence; the lot's trace shows a missing-basis source and links the message.",
         method="missing basis + later client evidence")]
 
@@ -582,12 +585,71 @@ def check_sep(p: Packet):
     l = p.line("Sch1.16")
     if not l:
         return []
+    # Corrected net profit: remove 1099-K double count, add back disallowed mileage / business-use / Spotify
+    k = p.ev_field("D21", "box1a")["value"]
+    pages = {e["page"]: e["value"] for e in p.values_by_doc["D23"] if e["field"] == "page_total"}
+    miles_fix = pages.get(3, 0) * p.data["engine_reference"]["parameters"]["mileage_rate"]
+    phone, net = p.ev_field("D14", "Telephone")["value"], p.ev_field("D14", "Internet")["value"]
+    spot = p.ev_field("D15", "spotify")["value"]
+    profit = p.value("SchC.31") - k + miles_fix + phone * 0.3 + net * 0.5 + spot
+    se_half = profit * 0.9235 * 0.153 / 2
+    limit = round(0.2 * (profit - se_half))
+    excess = 18000 - limit
     return [finding(
-        "SEP_EXCESS", "SEP 18,000 vs 15,214 limit depends on the Schedule C corrections", "business", "review", "judgment",
-        "The engine limits the SEP to 20% of (net profit - half SE tax) = 15,214 and carries 2,786 as nondeductible, which "
-        "would also trigger a 6% excise (Form 5329) unless withdrawn. After the Schedule C corrections and the SE health "
-        "insurance disallowance, net profit rises and the full 18,000 is likely deductible. Recompute before advising a withdrawal.",
-        [R("line", "Sch1.16"), R("doc", "D26", page=1), R("qa", "qa-26")], method="dependency on other findings")]
+        "SEP_EXCESS", f"SEP limit falls to about {limit:,} on corrected Schedule C — {excess:,} excess contribution", "business", "error", "return_error",
+        f"The engine limits the SEP to 20% of (net profit - half SE tax) = {l['value']:,} on its Schedule C. Corrected net profit is "
+        f"about {profit:,.0f} (1099-K removed; mileage, business-use and Spotify fixes), so the limit is about {limit:,}. The 18,000 "
+        f"deposited on 4/10/2026 leaves about {excess:,} excess: withdraw it with earnings by the extended due date (10/15/2026) "
+        "or a 6% excise applies every year it stays (Form 5329). SE health insurance does not enter this limit.",
+        [R("line", "Sch1.16"), R("doc", "D26", page=1), R("qa", "qa-26"), R("line", "SchC.31")],
+        engine=l["value"], expected=limit,
+        proposed=[{"line": "Sch1.16", "delta": limit - l["value"], "category": "adjustment", "description": "SEP deduction at the corrected 20% limit"}],
+        surfaced="Dependency between findings: the SEP limit is recomputed from the corrected Schedule C, not the engine's.",
+        method="recompute limit on corrected inputs")]
+
+
+def check_oregon_credit(p: Packet):
+    l = p.line("ScheduleS.credit")
+    if not l or not l["value"]:
+        return []
+    return [finding(
+        "CA_OSTC_OREGON", "California credit for Oregon composite tax is not allowed", "california", "error", "return_error",
+        f"Oregon is a 'reverse-credit' state: a California resident cannot take Schedule S credit for Oregon tax; the credit is "
+        f"claimed on an Oregon nonresident return instead. The engine took {l['value']:,}. Disallow it and consider an Oregon "
+        "return (outside this engagement) to recover the composite tax.",
+        [R("line", "ScheduleS.credit"), R("ev", "ev-0982", doc="D39", page=2), R("doc", "D39", page=2)],
+        engine=l["value"], expected=0,
+        proposed=[{"line": "ScheduleS.credit", "delta": -l["value"], "category": "credit_ca", "description": "Disallow Schedule S credit for Oregon (reverse-credit state)"}],
+        method="state credit rules")]
+
+
+def check_scorp_gain_source(p: Packet):
+    g = p.value("F7203.excess")
+    if not g:
+        return []
+    share = round(g * p.data["engine_reference"]["parameters"]["ca_resident_days"] / 365)
+    return [finding(
+        "SCORP_GAIN_CA_SOURCE", f"S corp excess-distribution gain ({g:,}) sourced to California by days", "california", "review", "judgment",
+        f"The engine prorates pass-through gains by residency days (~{share:,} to California). Gain from distributions in excess of "
+        "stock basis is gain on an intangible, recognized when basis is exhausted — on these facts in December, while a Texas "
+        "resident. Partner call: source it to Texas (California about -725) or document why the day-proration stands.",
+        [R("line", "F7203.excess"), R("line", "SchCA540NR.7.E"), R("doc", "D39", page=1)],
+        proposed=[{"line": "SchCA540NR.7.E", "delta": -share, "category": "ca_source_income", "description": "Source S corp excess-distribution gain to Texas (recognized after the move)"}],
+        method="sourcing rule review")]
+
+
+def check_daf_ack(p: Packet):
+    t = p.page_text("D65", 1)
+    if "exclusive legal control" in t:
+        return []
+    return [finding(
+        "DAF_ACK", "Donor-advised fund acknowledgment is missing the required statement", "deductions_and_credits", "review", "judgment",
+        "A gift to a donor-advised fund needs a written acknowledgment that the sponsoring organization has exclusive legal control "
+        "over the assets (IRC 170(f)(18)); D65 says only 'no goods or services provided'. Without it the 14,500 deduction is at "
+        "risk — and this is item 1 of the 2028 examination letter. Also confirm the mutual fund's value at NAV on 12/05/2025 "
+        "(the acknowledgment uses a high/low average).",
+        [R("line", "F8283.A1.stock"), R("doc", "D65", page=1), R("agency", "/notices/1")],
+        method="substantiation requirements")]
 
 
 CHECKS = [
@@ -596,7 +658,7 @@ CHECKS = [
     check_interest_duplicate, check_fx, check_home_property_tax, check_mortgage_payoff, check_vehicle_donation,
     check_estimates, check_ca_wages, check_dependent_ssn, check_broker_summary, check_crypto, check_provider,
     check_charity_ack, check_mileage_reasonableness, check_wash_sales, check_questionnaire, check_outside_filings,
-    check_ca_amt, check_sep,
+    check_ca_amt, check_sep, check_oregon_credit, check_scorp_gain_source, check_daf_ack,
 ]
 
 

@@ -96,8 +96,8 @@ class State:
                 eff = self.tax_effect(pl.get("category"), pl["delta"])
                 self.adjustments[pl["id"]] = {
                     **pl, "proposed_by": a, "ts": e["ts"], "status": "proposed", "approvals": [], "event": e["id"],
-                    "area": area_for_line(pl["line"]), "fed_effect": eff["fed"], "ca_effect": eff["ca"],
-                    "fed_balance": eff["fed_balance"], "ca_balance": eff["ca_balance"],
+                    "area": area_for_line(pl["line"]), "fed_effect": round(eff["fed"], 2), "ca_effect": round(eff["ca"], 2),
+                    "fed_balance": round(eff["fed_balance"], 2), "ca_balance": round(eff["ca_balance"], 2),
                     "requires_partner": max(abs(eff["fed"]), abs(eff["ca"]), abs(eff["fed_balance"]), abs(eff["ca_balance"])) > self.partner_threshold(),
                     "amendment": self.filing["amendment"], "batch": e["batch"],
                 }
@@ -225,6 +225,14 @@ class State:
             rr = r["schc_profit"]
             out["fed"], out["ca"] = -delta * rr["federal_per_dollar"], -delta * rr["california_per_dollar"]
             return out
+        if category == "credit_ca":
+            out["ca"] = -delta
+            return out
+        if "/" in category:  # federal category / California category (e.g. a sale while a CA resident)
+            f_cat, c_cat = category.split("/", 1)
+            out["fed"] = delta * r[f_cat]["federal_per_dollar"]
+            out["ca"] = delta * r[c_cat]["california_per_dollar"]
+            return out
         rr = r.get(category)
         if rr:
             out["fed"], out["ca"] = delta * rr["federal_per_dollar"], delta * rr["california_per_dollar"]
@@ -234,11 +242,71 @@ class State:
         return [a for a in self.adjustments.values() if a["status"] in statuses]
 
     def adjusted_value(self, key, statuses=("approved",)):
-        base = self.p.value(key, default=None)
-        deltas = [a["delta"] for a in self.adjustments.values() if a["line"] == key and a["status"] in statuses]
-        if base is None or not isinstance(base, (int, float)):
-            return base
-        return base + sum(deltas)
+        return self._adjusted(statuses)[0].get(key, self.p.value(key, default=None))
+
+    def stale(self, key, statuses=("approved", "proposed")):
+        """True when an input moved but this line's engine rule can't be re-run here (pending engine recompute)."""
+        return key in self._adjusted(statuses)[1]
+
+    def _adjusted(self, statuses):
+        """Propagate adjustments up the calculation graph. Lines built by plain arithmetic (R-SUM / R-CARRY)
+        are recomputed from adjusted inputs with the same formula the engine used; any other rule whose
+        inputs moved is marked stale (pending engine recompute) rather than guessed."""
+        cache = getattr(self, "_adj_cache", None)
+        if cache is None:
+            cache = self._adj_cache = {}
+        k = tuple(statuses)
+        if k in cache:
+            return cache[k]
+        lines = self.p.lines[self.p.current_version]
+        direct = defaultdict(float)
+        for a in self.adjustments.values():
+            if a["status"] in statuses:
+                direct[a["line"]] += a["delta"]
+        vals, stale, memo = {}, set(), {}
+
+        def val(key, depth=0):
+            if key in memo:
+                return memo[key]
+            l = lines.get(key)
+            if not l:
+                memo[key] = (None, False)
+                return memo[key]
+            base = l["value"]
+            changed, v = False, base
+            ins = l.get("inputs") or []
+            if ins and isinstance(base, (int, float)) and depth < 40:
+                sub = [val(i, depth + 1) for i in ins]
+                if any(i in stale for i in ins) and key not in direct:
+                    stale.add(key)  # built on a number that is itself awaiting the engine
+                if any(c for _, c in sub):
+                    nums = [x if isinstance(x, (int, float)) else 0 for x, _ in sub]
+                    orig = [lines[i]["value"] if i in lines and isinstance(lines[i]["value"], (int, float)) else 0 for i in ins]
+                    if l["rule"] in ("R-SUM", "R-CARRY"):
+                        # replay the engine's formula: identify it on the original inputs
+                        if l["rule"] == "R-CARRY" or abs(sum(orig) - base) <= 1.01:
+                            v = sum(nums) if l["rule"] == "R-SUM" else nums[0]
+                        elif orig and abs(orig[0] - sum(orig[1:]) - base) <= 1.01:
+                            v = nums[0] - sum(nums[1:])
+                        elif len(orig) == 2 and abs(orig[1] - orig[0] - base) <= 1.01:
+                            v = nums[1] - nums[0]
+                        else:
+                            v = base + (sum(nums) - sum(orig))
+                        changed = True
+                    elif key not in direct:  # a preparer-entered adjustment supplies the corrected result
+                        stale.add(key)
+            if key in direct and isinstance(base, (int, float)):
+                v = v + direct[key]
+                changed = True
+            if changed:
+                vals[key] = round(v, 2) if isinstance(v, float) else v
+            memo[key] = (v, changed)
+            return memo[key]
+
+        for key in lines:
+            val(key)
+        cache[k] = (vals, stale)
+        return cache[k]
 
     def summary(self):
         v = self.p.versions[self.p.current_version]["summary"]
@@ -343,7 +411,7 @@ class State:
             p_ = (d / abs(pv) * 100) if pv else (100.0 if cur else 0)
             flagged = abs(d) > amt and abs(p_) > pct
             expl = [n for n in self.notes.values() if n["target"] == f"line:{k}" and n.get("kind") == "variance_explanation"]
-            out.append({"key": k, "label": labels.get(k, k), "prior": pv, "current": cur, "change": d, "pct": round(p_, 1),
+            out.append({"key": k, "label": (l or {}).get("label") or labels.get(k, k), "prior": pv, "current": cur, "change": d, "pct": round(p_, 1),
                         "flagged": flagged, "explained": bool(expl), "explanation": expl[-1]["text"] if expl else None,
                         "in_2025": l is not None})
         return out

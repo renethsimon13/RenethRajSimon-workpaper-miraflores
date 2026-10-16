@@ -23,7 +23,7 @@ def line_row(s: State, l: dict):
         "key": k, "form": l["form"], "form_name": FORM_NAMES.get(l["form"], l["form"]), "line": l["line"],
         "label": l["label"], "value": l["value"], "jurisdiction": l["jurisdiction"], "rule": l["rule"],
         "area": area_for_line(k), "has_sources": bool(l.get("sources")), "inputs": l.get("inputs") or [],
-        "adjusted": s.adjusted_value(k), "pending": s.adjusted_value(k, ("approved", "proposed")),
+        "adjusted": s.adjusted_value(k), "pending": s.adjusted_value(k, ("approved", "proposed")), "stale": s.stale(k),
         "adjustments": len(adjs), "verified": [v["vtype"] for v in vers], "open_notes": len(notes), "note": l.get("note"),
     }
 
@@ -328,7 +328,7 @@ def books_to_tax(s: State):
         ("Less: home office (simplified)", -v("SchC.30"), "R-HOME-OFFICE-SIMPLIFIED", "engine"),
     ]
     engine_total = sum(x[1] for x in items)
-    wp = [a for a in s.adjustments.values() if a["area"] == "business" and a["status"] in ("approved", "proposed") and a["line"].startswith("SchC")]
+    wp = [a for a in s.adjustments.values() if a["status"] in ("approved", "proposed") and a["line"].startswith("SchC.")]
     wp_rows = []
     for a in wp:
         sign = -1 if a.get("category") == "schc_expense" else 1

@@ -153,7 +153,7 @@ export function ReturnPage() {
           <tbody>{shown.map((l: Any) => <tr key={l.key}>
             <td><input type="checkbox" checked={sel.has(l.key)} onChange={e => { const n = new Set(sel); e.target.checked ? n.add(l.key) : n.delete(l.key); setSel(n) }} /></td>
             <td className="num small">{l.key}</td><td>{l.label}{l.note && <div className="small muted">{l.note.slice(0, 110)}</div>}</td>
-            <td className="n"><Num k={l.key} v={l.value} /></td><td className="n">{l.adjusted !== l.value || l.pending !== l.value ? <Num k={l.key} v={l.value} adj={l.pending} /> : <span className="muted">=</span>}</td>
+            <td className="n"><Num k={l.key} v={l.value} /></td><td className="n">{l.adjusted !== l.value || l.pending !== l.value || l.stale ? <Num k={l.key} v={l.value} adj={l.pending} stale={l.stale} /> : <span className="muted">=</span>}</td>
             <td>{l.verified.length > 0 && <span className="chip ok">✓</span>} {l.adjustments > 0 && <span className="chip warn">± {l.adjustments}</span>} {l.open_notes > 0 && <span className="chip rev">✎ {l.open_notes}</span>} {!l.has_sources && !l.inputs.length && <span className="chip" title="no source or inputs">no source</span>}</td>
           </tr>)}</tbody></table>
         {rows.length > shown.length && <div className="empty">{rows.length - shown.length} more — narrow the filter (sales detail lives under Schedules → Sales).</div>}

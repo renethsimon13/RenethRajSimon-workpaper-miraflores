@@ -13,6 +13,7 @@ REASONS = {
     "FX_WRONG_YEAR": "2025 interest converts at the 2025 average rate (9.86).",
     "MORTGAGE_PAYOFF_DOUBLE": "Payoff statement says the interest is on the 1098.",
     "HOME_TAX_PRORATION": "Seller credited 6,912 for 1/1-7/7 at closing (D54); buyers deduct their share only.",
+    "CA_OSTC_OREGON": "Oregon is a reverse-credit state; California residents claim the credit on the Oregon return, not Schedule S.",
     "RSU_BASIS_ZERO": "Supplemental statement D11 gives adjusted basis; vest income already in W-2 box 1.",
     "FED_ESTIMATES_VS_IRS": "IRS transcript: Q4 paid 1/15/2026, 3,000 (client recalled 4,000).",
     "SEHI_NOT_ALLOWED": "Eligible for subsidized coverage through spouse's employers all year (qa-25); IRC 162(l)(2)(B).",
@@ -94,6 +95,7 @@ def seed(P, state):
     accept("SCHC_BUSINESS_USE", PRI, "2026-03-26T18:00:00Z")
     accept("SCHC_PERSONAL_SPOTIFY", PRI, "2026-03-26T18:05:00Z")
     accept("CA_WAGES_SOURCE", PRI, "2026-03-27T17:00:00Z")
+    accept("CA_OSTC_OREGON", PRI, "2026-03-27T17:10:00Z")
     time(PRI, "california", 1.4, "2026-03-27T17:30:00Z")
     ev("cu-02", "question.answered", {"id": q1, "text": "I wrote trips on a notepad in the car and copied them into the sheet in January. Some days had several stops so the miles add up."}, "2026-03-28T02:10:00Z")
     ev(PRI, "signoff.signed", {"id": store.new_id("sign"), "area": "business", "level": "preparer", "hash": state().area_hash("business")}, "2026-03-27T18:00:00Z")

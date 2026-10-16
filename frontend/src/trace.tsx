@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Any, Ref, Sev, api, can, day, dt, fmtVal, money, registerTrace, signed, useApp, useLoad } from './lib'
 
+export const CATEGORY_LABEL: Record<string, string> = {
+  interest: 'Interest / dividends', stcg: 'Short-term gain', ltcg: 'Long-term gain', schc_profit: 'Business income (Sch C)', schc_expense: 'Business expense (Sch C)',
+  ordinary_income: 'Other income', wages: 'Wages', adjustment: 'Adjustment to income', salt: 'State & local tax (capped)', itemized: 'Other itemized deduction',
+  ca_source_income: 'California-source amount only', payment_fed: 'Federal payment', payment_ca: 'California payment', credit_fed: 'Federal credit', '(no tax effect)': 'No tax effect',
+}
 export const CATEGORIES = ['interest', 'stcg', 'ltcg', 'schc_profit', 'schc_expense', 'ordinary_income', 'wages', 'adjustment', 'salt', 'itemized', 'ca_source_income', 'payment_fed', 'payment_ca', 'credit_fed', '(no tax effect)']
 
 export function useActions() {
@@ -14,9 +19,10 @@ export function useActions() {
     },
     propose: async (line: string, base?: Any, finding?: string) => {
       const v = await ask({ title: `Adjust ${line}`, text: base !== undefined ? `Engine value ${fmtVal(base)}. Enter the change (not the new value). The original stays on record.` : undefined, fields: [
-        { key: 'delta', label: 'Change (+/-)', type: 'number', required: true }, { key: 'category', label: 'Tax-effect category', type: 'select', options: CATEGORIES },
+        { key: 'delta', label: 'Change (+/-)', type: 'number', required: true }, { key: 'category', label: 'What kind of amount is it? (sets the tax effect)', type: 'select', options: CATEGORIES.map(c => CATEGORY_LABEL[c]) },
         { key: 'description', label: 'Short description', required: true }, { key: 'reason', label: 'Why (evidence, authority)', type: 'textarea', required: true }] })
-      if (v) await send({ type: 'adjustment.proposed', payload: { line, delta: Number(v.delta), category: v.category === '(no tax effect)' ? null : v.category, description: v.description, reason: v.reason, finding } }, 'Adjustment proposed')
+      const cat = CATEGORIES.find(c => CATEGORY_LABEL[c] === v?.category)
+      if (v) await send({ type: 'adjustment.proposed', payload: { line, delta: Number(v.delta), category: cat === '(no tax effect)' ? null : cat, description: v.description, reason: v.reason, finding } }, 'Adjustment proposed')
     },
     note: async (target: string, kinds?: string[]) => {
       const role = app.role
@@ -41,8 +47,12 @@ export function useActions() {
       inp.click()
     },
     link: async (from: string) => {
-      const v = await ask({ title: 'Link related item', text: 'e.g. line:SchD.12, doc:D37, py:/return_2024/K1_1065, or a related return', fields: [{ key: 'to', label: 'Related item', required: true }, { key: 'why', label: 'Relationship' }] })
-      if (v) await send({ type: 'link.added', payload: { from, to: v.to, why: v.why } }, 'Link added')
+      const opts = ['Same line on the 2024 return', 'Woodworks 1120-S K-1 (D39)', 'Woodworks 2023 K-1 (D40)', 'Ridgeline K-1 (D37)', 'Ridgeline state supplement (D38)', "Ada's own 2025 return", 'Prior preparer file (D07)', 'Other (type below)']
+      const map: Record<string, string> = { 'Same line on the 2024 return': 'py:/return_2024/lines/' + from.replace('line:', ''), 'Woodworks 1120-S K-1 (D39)': 'doc:D39', 'Woodworks 2023 K-1 (D40)': 'doc:D40', 'Ridgeline K-1 (D37)': 'doc:D37', 'Ridgeline state supplement (D38)': 'doc:D38', "Ada's own 2025 return": 'household:ada', 'Prior preparer file (D07)': 'doc:D07' }
+      const v = await ask({ title: 'Link a related item', text: 'Across the return, prior years and related returns.', fields: [{ key: 'pick', label: 'Related item', type: 'select', options: opts }, { key: 'other', label: 'Other (a line like SchD.12, or a document like D37)' }, { key: 'why', label: 'Relationship', required: true }] })
+      if (!v) return
+      const to = v.pick === 'Other (type below)' ? (/^D\d+$/.test(v.other) ? 'doc:' + v.other : v.other.includes(':') ? v.other : 'line:' + v.other) : map[v.pick]
+      await send({ type: 'link.added', payload: { from, to, why: v.why } }, 'Link added')
     },
   }
 }
@@ -91,11 +101,11 @@ function LineTrace({ id }: { id: string }) {
     <h1 style={{ fontSize: 18 }}>{d.label}</h1>
     <div className="grid g3" style={{ margin: '10px 0' }}>
       <div className="card kpi"><div className="lbl">Engine ({st?.filing ? 'v3' : ''})</div><div className="val">{fmtVal(d.value)}</div></div>
-      <div className="card kpi"><div className="lbl">Workpaper (approved)</div><div className="val">{fmtVal(d.adjusted)}</div></div>
+      <div className="card kpi"><div className="lbl">Workpaper (approved)</div><div className="val">{fmtVal(d.adjusted)}</div>{d.stale && <div className="delta" style={{ color: 'var(--warn)' }}>⟳ an input changed — pending engine recompute</div>}</div>
       <div className="card kpi"><div className="lbl">Incl. pending</div><div className="val">{fmtVal(d.pending)}</div>{pending && <div className="delta muted">awaiting approval</div>}</div>
     </div>
     <div className="row">{d.verified.map((v: string, i: number) => <span key={i} className="chip ok">✓ {v.replace(/_/g, ' ')}</span>)}{!d.verified.length && <span className="chip">not verified</span>}
-      {d.findings.map((f: Any) => <button key={f.id} className={'chip ' + (f.status === 'open' ? ({ error: 'err', warning: 'warn', review: 'rev' } as Any)[f.severity] || '' : 'ok')} onClick={() => go('findings', f.id)}>⚑ {f.title.slice(0, 48)}</button>)}</div>
+      {d.findings.map((f: Any) => <button key={f.id} className={'chip ' + (f.status === 'open' ? ({ error: 'err', warning: 'warn', review: 'rev' } as Any)[f.severity] || '' : 'ok')} onClick={() => go('findings', f.id)}>⚑ {f.title.length > 90 ? f.title.slice(0, 88) + '…' : f.title}</button>)}</div>
     <Actions target={'line:' + id} line={id} base={d.value} />
     <p className="small"><b>Rule {d.rule}.</b> {d.rule_text}{d.note && <><br /><span className="muted">Engine note: {d.note}</span></>}</p>
 
@@ -182,7 +192,7 @@ export function DocView({ id, page, ev, compact }: { id: string; page?: number; 
   const values = useMemo(() => Object.fromEntries((d?.values_detail || []).map((v: Any) => [v.id, v])), [d])
   if (!d) return <div className="empty">Loading document…</div>
   const P = d.pages_detail.find((x: Any) => x.page === pg) || d.pages_detail[0]
-  const text: string = P.render.content
+  const text: string = P.render.content.replace(/; /g, ';\n')
   const anchors = P.anchors.filter((a: Any) => a.start !== null).sort((a: Any, b: Any) => a.start - b.start)
   const parts: React.ReactNode[] = []
   let cur = 0
@@ -209,7 +219,7 @@ export function DocView({ id, page, ev, compact }: { id: string; page?: number; 
     </div>
     {!compact && <Actions target={'doc:' + d.id} />}
     <div className="small" style={{ margin: '4px 0 8px' }}><b>Landed on:</b> {d.landed_lines.length ? d.landed_lines.slice(0, 30).map((k: string) => <Ref key={k} r={{ type: 'line', id: k }} />) : <span className="muted">{d.disposition || 'nowhere'}</span>}{d.landed_lines.length > 30 && <span className="muted"> +{d.landed_lines.length - 30}</span>}</div>
-    {d.pages_detail.length > 1 && <div className="row" style={{ gap: 4, marginBottom: 6 }}>{d.pages_detail.map((x: Any) => <button key={x.page} className={'chip ' + (x.page === pg ? 'acc' : '')} onClick={() => { setPg(x.page); setFocus(undefined) }}>p{x.page}{x.anchors.length ? ` · ${x.anchors.length}` : ''}</button>)}</div>}
+    {d.pages_detail.length > 1 && <div className="row" style={{ gap: 4, marginBottom: 6 }}>{d.pages_detail.map((x: Any) => { const dup = d.findings.includes(`DUP_PAGE_${d.id}_${x.page}`); return <button key={x.page} className={'chip ' + (x.page === pg ? 'acc' : dup ? 'err' : '')} onClick={() => { setPg(x.page); setFocus(undefined) }}>p{x.page}{x.anchors.length ? ` · ${x.anchors.length}` : ''}{dup ? ' · duplicate' : ''}</button> })}</div>}
     <div className="small muted" style={{ marginBottom: 4 }}>Simulated page (rendered from printed_content). Highlights are the pipeline's extracted fields; a real page image plugs into the same anchors as bounding boxes.</div>
     <div className="page" ref={pageRef}>{parts}</div>
     {fv && <div className="card" style={{ marginTop: 10 }}>

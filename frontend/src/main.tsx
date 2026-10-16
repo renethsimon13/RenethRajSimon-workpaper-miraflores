@@ -20,7 +20,7 @@ function Shell() {
   const seenRef = useRef<number>(0)
   useEffect(() => { if (!q || q.length < 2 || role === 'client') { setRes([]); return } const t = setTimeout(() => api('/api/search?q=' + encodeURIComponent(q)).then(setRes).catch(() => setRes([])), 200); return () => clearTimeout(t) }, [q])
   // mark "seen" when the person looks at the overview, so "changes since I last looked" means something
-  useEffect(() => { if (st && page === 'overview' && st.last_event && seenRef.current !== st.last_event && role !== 'client') { const id = st.last_event; seenRef.current = id; const t = setTimeout(() => post('/api/events', { type: 'view.seen', payload: { event_id: id } }).catch(() => {}), 4000); return () => clearTimeout(t) } }, [st?.last_event, page, person])
+  // 'Seen' is recorded only when the person clicks 'Mark all as seen' (Timeline → since)
   if (!boot || !st) return <div className="empty">Loading workpaper…</div>
   const client = role === 'client'
   const counts: Record<string, Any> = {

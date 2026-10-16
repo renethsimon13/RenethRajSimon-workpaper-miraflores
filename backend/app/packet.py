@@ -31,9 +31,10 @@ AREAS = {
 
 _AREA_RULES = [
     (r"^F8949\.[A-Z]\.N[1-4]$", "wages_and_stock_compensation"),
-    (r"^(F1040\.1|F8959|F6251|Sch2\.[123]$|F1040\.17$|Sch3\.11$)", "wages_and_stock_compensation"),
+    (r"^(SchCA540NR|F540NR|FTB|ScheduleS)", "california"),
+    (r"^(F1040\.1[a-z]$|F8959|F6251|Sch2\.[123]$|F1040\.17$|Sch3\.11$)", "wages_and_stock_compensation"),
     (r"^(SchB|F1040\.2b|F1040\.3|SchD|F8949|F8938|F8960|Sch3\.1$|Sch2\.12$)", "investments_and_digital_assets"),
-    (r"^(SchC|SchSE|F4562-C|Sch1\.(3|15|16|17)$|F8995|Sch2\.4$)", "business"),
+    (r"^(SchC\.|SchSE|F4562-C|Sch1\.(3|15|16|17)$|F8995|Sch2\.4$)", "business"),
     (r"^(SchE\.(1|2|3|9|11|12|14|16|18|19|20|21|22|26)[AB]?|SchE\.26|F4562-E|F4797|F8582)", "rentals_and_sale"),
     (r"^(SchE\.(28|32|41)|F7203|Sch1\.5$)", "pass_throughs_and_basis"),
     (r"^(SchA|F8283|F8812|F8863|F2441|F8889|F8606|F1040\.4|F1040\.1[2-5]|F1040\.19|F1040\.20|Sch3\.8|F8867|Sch1\.13)", "deductions_and_credits"),

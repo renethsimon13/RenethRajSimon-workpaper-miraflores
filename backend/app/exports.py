@@ -59,7 +59,8 @@ def _line_rows(s: State, keys):
         l = s.p.line(k)
         if not l:
             continue
-        out += f"<tr><td>{esc(k)}</td><td>{esc(l['label'])}</td><td class='n'>{money(l['value'])}</td><td class='n'>{money(s.adjusted_value(k))}</td><td>{esc(', '.join(l.get('sources') or []))}</td></tr>"
+        wp = money(s.adjusted_value(k)) + (" <span class='tag'>pending engine recompute</span>" if s.stale(k) else "")
+        out += f"<tr><td>{esc(k)}</td><td>{esc(l['label'])}</td><td class='n'>{money(l['value'])}</td><td class='n'>{wp}</td><td>{esc(', '.join(l.get('sources') or []))}</td></tr>"
     return out + "</table>"
 
 
@@ -107,7 +108,7 @@ def client_copy(s: State):
             f"<table><tr><th></th><th>Federal</th><th>California</th></tr><tr><td>Total tax</td><td class='n'>{money(sm['federal']['total_tax'])}</td><td class='n'>{money(sm['california']['total_tax'])}</td></tr>"
             f"<tr><td>Payments</td><td class='n'>{money(sm['federal']['payments'])}</td><td class='n'>{money(sm['california']['payments'])}</td></tr>"
             f"<tr><td>{'Balance due' if sm['federal']['balance_due'] > 0 else 'Refund'}</td><td class='n'>{money(abs(sm['federal']['balance_due']))}</td><td class='n'>{money(abs(sm['california']['balance_due']))}</td></tr></table>",
-            "<p class='muted'>Figures include adjustments approved by your CPA team. Line detail below is the engine's computation with the adjusted value alongside.</p>",
+            "<p class='muted'><b>Estimated.</b> Totals above are the computed return plus adjustments approved by your CPA team, estimated at marginal rates; the final figures come from the recomputed return. In the lines below, 'Workpaper' recomputes simple sums; lines marked 'pending engine recompute' depend on tax calculations that are re-run before filing.</p>",
             _line_rows(s, keys), f"<p>Filing status: {esc(s.filing['status'])}</p>"]
     return page("2025 return — client copy", "".join(body))
 

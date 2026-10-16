@@ -30,7 +30,7 @@ function LineList({ keys }: { keys: string[] }) {
   const m = Object.fromEntries(lines.map(l => [l.key, l]))
   return <table className="t card"><thead><tr><th>Line</th><th>Label</th><th className="n">Engine</th><th className="n">Workpaper</th><th>Rule</th><th></th></tr></thead><tbody>
     {keys.filter(k => m[k]).map(k => { const l = m[k]; return <tr key={k}><td className="num small">{k}</td><td>{l.label}{l.note && <div className="small muted">{l.note}</div>}</td><td className="n"><Num k={k} v={l.value} /></td>
-      <td className="n">{l.pending !== l.value ? <Num k={k} v={l.value} adj={l.pending} /> : <span className="muted">=</span>}</td><td className="small muted">{l.rule}</td><td>{l.verified.length > 0 && <span className="chip ok">✓</span>}{l.adjustments > 0 && <span className="chip warn">±</span>}</td></tr> })}
+      <td className="n">{l.pending !== l.value || l.stale ? <Num k={k} v={l.value} adj={l.pending} stale={l.stale} /> : <span className="muted">=</span>}</td><td className="small muted">{l.rule}</td><td>{l.verified.length > 0 && <span className="chip ok">✓</span>}{l.adjustments > 0 && <span className="chip warn">±</span>}</td></tr> })}
   </tbody></table>
 }
 

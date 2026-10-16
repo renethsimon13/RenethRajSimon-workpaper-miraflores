@@ -1,5 +1,7 @@
 # Miraflores — web-native tax workpaper (Okafor-Lindqvist 2025)
 
+**Live app:** _add Render URL_ · **Video walkthrough:** _add video link_
+
 A working workpaper for one complex household's 2025 return, built from the purpose rather than the spreadsheet. The packet is loaded as delivered; every human action is an append-only event; every screen is a view of packet + events.
 
 - **Core idea and data model:** [`docs/CORE_IDEA.md`](docs/CORE_IDEA.md)

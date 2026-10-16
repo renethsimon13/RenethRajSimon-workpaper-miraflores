@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { AREA_ORDER, Any, Num, Ref, api, can, day, dt, fmtVal, money, post, signed, useApp, useLoad } from '../lib'
-import { AdjCard, CATEGORIES, NoteCard, QuestionCard, useActions } from '../trace'
+import { AdjCard, CATEGORIES, CATEGORY_LABEL, NoteCard, QuestionCard, useActions } from '../trace'
 
 // ---------------------------------------------------------------- Review
 export function Review() {
@@ -61,7 +61,7 @@ export function People() {
           const v = await ask({ title: 'Log time', fields: [{ key: 'area', label: 'Area', type: 'select', options: Object.keys(st.time.rows.length ? Object.fromEntries(st.time.rows.map((r: Any) => [r.area, 1])) : boot.budget) }, { key: 'hours', label: 'Hours', type: 'number', required: true }, { key: 'note', label: 'Note' }] })
           if (v) send({ type: 'time.logged', payload: { area: v.area, hours: Number(v.hours), note: v.note } }, 'Time logged')
         }}>Log time…</button>}</div>
-        <table className="t card"><tbody>{st.time.rows.map((r: Any) => <tr key={r.area}><td>{r.area.replace(/_/g, ' ')}</td><td style={{ width: 160 }}><div className="bar"><i className={r.spent > r.budget ? 'over' : ''} style={{ width: Math.min(100, r.spent / (r.budget || 1) * 100) + '%' }} /></div></td><td className="n num">{r.spent} / {r.budget} h</td></tr>)}
+        <table className="t card"><tbody>{st.time.rows.map((r: Any) => <tr key={r.area}><td>{r.area.replace(/_/g, ' ')}</td><td style={{ width: 160 }}><div className="bar"><i className={r.spent > r.budget ? 'over' : ''} style={{ width: Math.min(100, r.spent / (r.budget || 1) * 100) + '%' }} /></div></td><td className="n num">{r.spent} / {r.budget ? r.budget + ' h' : 'no budget'}</td></tr>)}
           <tr><th>Total</th><th /><th className="n num">{st.time.total_spent} / {st.time.total_budget} h</th></tr></tbody></table>
         <h2>Notifications</h2>{st.inbox.slice(0, 20).map((x: Any, i: number) => <div key={i} className="small" style={{ margin: '4px 0' }}><span className="chip">{x.kind.replace(/_/g, ' ')}</span> {x.text} <span className="muted">{day(x.ts)}</span></div>)}
       </div>
@@ -133,19 +133,27 @@ async function openAs(path: string, json = false) {
 }
 
 // ---------------------------------------------------------------- Timeline
+const humanize = (t: string) => ({ 'adjustment.proposed': 'proposed an adjustment', 'adjustment.approved': 'approved an adjustment', 'adjustment.reversed': 'reversed an adjustment',
+  'verification.added': 'verified', 'verification.removed': 'withdrew a verification', 'note.created': 'added a note', 'note.replied': 'replied to a note', 'note.resolved': 'resolved a note',
+  'note.reopened': 'reopened a note', 'question.asked': 'asked a question', 'question.answered': 'answered a question', 'signoff.signed': 'signed off', 'finding.accepted': 'accepted a finding',
+  'finding.dismissed': 'dismissed a finding', 'finding.reopened': 'reopened a finding', 'time.logged': 'logged time', 'file.attached': 'attached a file', 'link.added': 'linked items',
+  'view.sensitive': 'viewed sensitive data', 'batch.undo': 'undid a batch', 'batch.redo': 'redid a batch', 'fact.corrected': 'corrected a fact', 'standards.updated': 'changed firm standards',
+  'assignment.set': 'assigned work' } as Record<string, string>)[t] || t.replace('filing.', 'filing: ').replace(/_/g, ' ')
+
 export function Timeline() {
-  const { st, boot, name, arg } = useApp()
+  const { st, boot, name, arg, person, send, go } = useApp()
   const [evs] = useLoad<Any[]>('/api/events?since=0')
   const [asof, setAsof] = useState('2028-12-31')
   if (!st || !boot || !evs) return <div className="empty">Loading…</div>
   const since = arg === 'since' ? st.changes.since_event : null
   const items = [
     ...boot.timeline.map((t: Any) => ({ at: t.at, who: t.actor ? name(t.actor) : 'client / system', what: t.event.replace(/_/g, ' '), detail: t.detail || t.refs.join(', '), src: 'packet' })),
-    ...evs.filter(e => e.type !== 'view.seen').map(e => ({ at: e.ts, who: name(e.actor), what: e.type, detail: e.payload.description || e.payload.text || e.payload.reason || e.payload.vtype || e.payload.what || e.entity || '', src: 'workpaper', id: e.id, batch: e.batch, undone: st.undone_batches.includes(e.batch) })),
-  ].filter(x => x.at <= asof + 'T99' && (since === null || (x.src === 'workpaper' && x.id > since))).sort((a, b) => a.at < b.at ? 1 : -1)
+    ...evs.filter(e => e.type !== 'view.seen').map(e => ({ at: e.ts, who: name(e.actor), actorId: e.actor, what: humanize(e.type), detail: e.payload.description || e.payload.text || e.payload.reason || e.payload.vtype || e.payload.what || e.entity || '', src: 'workpaper', id: e.id, batch: e.batch, undone: st.undone_batches.includes(e.batch) })),
+  ].filter(x => x.at <= asof + 'T99' && (since === null || (x.src === 'workpaper' && x.id > since && x.actorId !== person))).sort((a, b) => a.at < b.at ? 1 : -1)
   return <div>
     <h1>{since !== null ? 'What changed since you last looked' : 'Season timeline'}</h1>
-    <p className="sub">The packet's scripted season merged with every workpaper event. Drag the clock to replay the season as of any date.</p>
+    <p className="sub">The packet's scripted season merged with every workpaper event. Filter to any date to see the season as it stood then.</p>
+    {since !== null && <div className="row" style={{ marginBottom: 8 }}><button className="btn pri" onClick={async () => { await send({ type: 'view.seen', payload: { event_id: st.last_event } }); go('overview') }}>Mark all as seen</button><span className="small muted">Only you clear this list.</span></div>}
     <div className="row"><span className="small">As of</span><input type="date" value={asof} onChange={e => setAsof(e.target.value)} className="btn" />
       {['2026-03-04', '2026-03-19', '2026-04-14', '2026-06-23', '2026-07-15', '2028-12-31'].map(d => <button key={d} className="btn sm" onClick={() => setAsof(d)}>{d}</button>)}</div>
     <table className="t card" style={{ marginTop: 10 }}><thead><tr><th>When</th><th>Source</th><th>Who</th><th>Event</th><th>Detail</th></tr></thead><tbody>
@@ -177,7 +185,7 @@ export function Compare() {
     <h2>Sandbox what-if (nothing is saved)</h2>
     <div className="card">{rows.map((r, i) => <div key={i} className="row" style={{ marginBottom: 6 }}><input className="btn" value={r.line} onChange={e => { const n = [...rows]; n[i] = { ...r, line: e.target.value }; setRows(n) }} placeholder="line" />
       <input className="btn" type="number" value={r.delta} onChange={e => { const n = [...rows]; n[i] = { ...r, delta: Number(e.target.value) }; setRows(n) }} />
-      <select className="btn" value={r.category} onChange={e => { const n = [...rows]; n[i] = { ...r, category: e.target.value }; setRows(n) }}>{CATEGORIES.map(c => <option key={c}>{c}</option>)}</select>
+      <select className="btn" value={r.category} onChange={e => { const n = [...rows]; n[i] = { ...r, category: e.target.value }; setRows(n) }}>{CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}</select>
       <button className="btn sm" onClick={() => setRows(rows.filter((_, j) => j !== i))}>✕</button></div>)}
       <div className="row"><button className="btn sm" onClick={() => setRows([...rows, { line: '', delta: 0, category: 'ordinary_income' }])}>+ change</button><button className="btn sm pri" onClick={async () => setRes(await post('/api/whatif', { changes: rows }))}>Run</button></div>
       {res && <p className="small">Federal tax <b className="num">{signed(res.federal_tax_change)}</b> → balance {money(res.federal_balance_due)} · California <b className="num">{signed(res.california_tax_change)}</b> → balance {money(res.california_balance_due)}<br /><span className="muted">{res.caveat}</span></p>}</div>
@@ -247,8 +255,9 @@ export function ClientPortal() {
   }
   return <div style={{ maxWidth: 880 }}>
     <div className="client-hero"><div className="small" style={{ opacity: .8 }}>Welcome, {name(person)}</div><h1 style={{ color: '#fff' }}>Your 2025 tax return</h1>
-      <div className="grid g2" style={{ marginTop: 10 }}><div><div className="small" style={{ opacity: .8 }}>Federal</div><div className="num">{sm.federal.balance_due > 0 ? `You owe ${money(sm.federal.balance_due)}` : `Refund ${money(-sm.federal.balance_due)}`}</div></div>
-        <div><div className="small" style={{ opacity: .8 }}>California</div><div className="num">{sm.california.balance_due > 0 ? `You owe ${money(sm.california.balance_due)}` : `Refund ${money(-sm.california.balance_due)}`}</div></div></div>
+      <div className="grid g2" style={{ marginTop: 10 }}><div><div className="small" style={{ opacity: .8 }}>Federal (estimated)</div><div className="num">{sm.federal.balance_due > 0 ? `About ${money(sm.federal.balance_due)} due` : `About ${money(-sm.federal.balance_due)} refund`}</div></div>
+        <div><div className="small" style={{ opacity: .8 }}>California (estimated)</div><div className="num">{sm.california.balance_due > 0 ? `About ${money(sm.california.balance_due)} due` : `About ${money(-sm.california.balance_due)} refund`}</div></div></div>
+      <div className="small" style={{ opacity: .8, marginTop: 6 }}>Estimates while your CPA team finishes review; final amounts come with the return you approve.</div>
       <div className="small" style={{ opacity: .8, marginTop: 8 }}>Status: {f.status.replace('_', ' ')}{f.extension && ' · extension filed 4/14'}</div></div>
     {f.status === 'awaiting_client' && <div className="card" style={{ marginTop: 14, borderColor: 'var(--accent)' }}><h2 style={{ marginTop: 0 }}>Ready for your approval</h2><p>Please review the summary. Approving signs Forms 8879 and FTB 8879 electronically for both of you.</p>
       <div className="row"><a className="btn" href="#" onClick={e => { e.preventDefault(); openAs('/api/export/client-copy') }}>Review return summary</a><button className="btn pri" onClick={() => send({ type: 'filing.client_approved', payload: { signed: '8879 and FTB 8879', signer: person } }, 'Thank you — approval and e-file signature recorded')}>Approve and sign</button></div></div>}

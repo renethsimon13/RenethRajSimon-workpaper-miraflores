@@ -157,11 +157,11 @@ export function Ref({ r, children }: { r: Any; children?: React.ReactNode }) {
   return <button className={'chip ' + (cls[t] || '')} onClick={onClick} title={t}>{label}</button>
 }
 
-export function Num({ k, v, adj }: { k: string; v: Any; adj?: Any }) {
+export function Num({ k, v, adj, stale }: { k: string; v: Any; adj?: Any; stale?: boolean }) {
   const { trace } = useApp()
   const changed = adj !== undefined && adj !== null && typeof v === 'number' && Math.abs(adj - v) > 0.004
   return <a className="num" onClick={() => trace({ kind: 'line', id: k })} style={{ cursor: 'pointer' }} title={'Trace ' + k}>
-    {changed ? <><span className="strike">{fmtVal(v)}</span> {fmtVal(adj)}</> : fmtVal(v)}
+    {changed ? <><span className="strike">{fmtVal(v)}</span> {fmtVal(adj)}</> : fmtVal(v)}{stale && <span className="chip warn" title="An input changed; this line's rule is re-run by the engine" style={{ marginLeft: 4 }}>⟳ recompute</span>}
   </a>
 }
 
