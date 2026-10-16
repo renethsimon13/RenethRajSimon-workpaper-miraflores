@@ -2,15 +2,13 @@
 
 [![CI](https://github.com/renethsimon13/renethrajsimon-workpaper-miraflores/actions/workflows/ci.yml/badge.svg)](https://github.com/renethsimon13/renethrajsimon-workpaper-miraflores/actions/workflows/ci.yml)
 
-**Live app:** [_add Render URL_](https://miraflores-workpaper-i1w8.onrender.com/) · 
+**Live app:** https://miraflores-workpaper-i1w8.onrender.com/ (free hosting: the first load can take up to a minute)  
 **Video walkthrough:** https://drive.google.com/file/d/1mi7UpVjK4Ano-nHZZ7npKPGm5-cRlvGb/view
 
 A working workpaper for one complex household's 2025 return, built from the purpose rather than the spreadsheet. The packet is loaded as delivered; every human action is an append-only event; every screen is a view of packet + events.
 
 - **Core idea and data model:** [`docs/CORE_IDEA.md`](docs/CORE_IDEA.md)
 - **Errors found and how the design surfaced them:** [`docs/ERRORS.md`](docs/ERRORS.md)
-- **How AI was used:** [`docs/AI_USAGE.md`](docs/AI_USAGE.md)
-- **Video script:** [`docs/VIDEO_SCRIPT.md`](docs/VIDEO_SCRIPT.md)
 
 ## What's in it
 

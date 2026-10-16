@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 backend/workpaper.db
 .env
+frontend/tsconfig.tsbuildinfo
