@@ -80,7 +80,7 @@ export function Findings() {
     <p className="sub">Independent checks read the printed documents, prior year and agency records directly — they never trust the engine. Engine diagnostics are listed too, but they missed every error below.</p>
     <div className="row" style={{ marginBottom: 10 }}>
       <div className="tabs" style={{ margin: 0, border: 0 }}>{['open', 'resolved', 'engine', 'all'].map(x => <button key={x} className={filter === x ? 'on' : ''} onClick={() => setFilter(x)}>{x}</button>)}</div>
-      <span className="sp" /><span className="small">Open estimated effect: federal <b className="num">{signed(tot.fed)}</b> · CA <b className="num">{signed(tot.ca)}</b></span>
+      <span className="sp" /><span className="small">If all open findings were accepted, balance due: federal <b className="num">{signed(tot.fed)}</b> · CA <b className="num">{signed(tot.ca)}</b></span>
       {can(role, 'propose') && sel.size > 0 && <button className="btn pri" onClick={() => accept(st.findings.filter((f: Any) => sel.has(f.id)))}>Accept {sel.size} selected</button>}
     </div>
     {list.map((f: Any) => <div key={f.id} className={`card finding ${f.severity} ${f.status !== 'open' ? 'done' : ''}`} style={{ marginBottom: 10, outline: f.id === arg ? '2px solid var(--accent)' : undefined }}>
@@ -88,7 +88,7 @@ export function Findings() {
         {can(role, 'propose') && f.status === 'open' && f.proposed.length > 0 && <input type="checkbox" checked={sel.has(f.id)} onChange={e => { const n = new Set(sel); e.target.checked ? n.add(f.id) : n.delete(f.id); setSel(n) }} />}
         <span className="pill-sev" style={{ color: ({ error: 'var(--err)', warning: 'var(--warn)', review: 'var(--rev)' } as Any)[f.severity] }}>{f.severity}</span>
         <b>{f.title}</b><span className="chip">{boot.areas[f.area]}</span><span className="chip">{f.kind.replace(/_/g, ' ')}</span><span className="sp" />
-        {(f.est_fed !== 0 || f.est_ca !== 0) && <span className="small">Fed <b className="num">{signed(f.est_fed)}</b> · CA <b className="num">{signed(f.est_ca)}</b></span>}
+        {(f.est_fed !== 0 || f.est_ca !== 0) && <span className="small" title="Estimated change in balance due if accepted">Balance due: fed <b className="num">{signed(f.est_fed)}</b> · CA <b className="num">{signed(f.est_ca)}</b></span>}
         <span className={'chip ' + (f.status === 'open' ? 'warn' : 'ok')}>{f.status}</span>
       </div>
       <p style={{ margin: '8px 0' }}>{f.summary}</p>
