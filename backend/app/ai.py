@@ -188,7 +188,8 @@ def _call_model(system: str, user: str):
         r.raise_for_status()
         return "".join(b.get("text", "") for b in r.json()["content"]), f"anthropic:{ANTHROPIC_MODEL}"
     if os.environ.get("GEMINI_API_KEY"):
-        body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
+        # Instructions go at the top of the message: some models (e.g. flash-lite variants) reject a separate system field.
+        body = {"contents": [{"role": "user", "parts": [{"text": "INSTRUCTIONS:\n" + system + "\n\n" + user}]}],
                 "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2}}
         import time
         first = _pick_gemini_model()
