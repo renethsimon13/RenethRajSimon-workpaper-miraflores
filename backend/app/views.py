@@ -287,7 +287,9 @@ def sales(s: State):
     mer = p.ev_field("D31", "b_summary_proceeds")["value"]
     mt = by[("Meridian", "short")]["proceeds"] + by[("Meridian", "long")]["proceeds"]
     recon.append({"statement": "Meridian 1099-B (corrected) summary", "statement_proceeds": mer, "lots_proceeds": round(mt, 2), "ok": abs(mer - mt) < 0.01, "doc": "D31",
-                  "note": "Difference = lot M18 on page 32 (not read by the pipeline)" if abs(mer - mt) > 0.01 else None})
+                  "note": "Difference = lot M18 on page 32 (not read by the pipeline)" if abs(mer - mt) > 0.01 else None,
+                  "note_refs": [{"type": "ev", "id": p.ev_field("D31", "b_summary_proceeds")["id"], "doc": "D31", "page": 1},
+                                {"type": "doc", "id": "D31", "page": 32}] if abs(mer - mt) > 0.01 else []})
     da = p.ev_field("D34", "total")["value"]
     ct = sum(r["proceeds"] for r in rows if r["broker"] == "Coinhaven")
     recon.append({"statement": "Coinhaven 1099-DA gross proceeds", "statement_proceeds": da, "lots_proceeds": ct, "ok": abs(da - ct) < 0.01, "doc": "D34"})
