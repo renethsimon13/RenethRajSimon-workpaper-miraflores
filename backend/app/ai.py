@@ -173,7 +173,9 @@ def _pick_gemini_model() -> str:
             _gemini_model = latest[0]
     # fallbacks when the first choice is busy: other flash models, then flash-lite
     lite = [n for n in names if "flash-lite" in n and "preview" not in n]
-    _gemini_candidates = [_gemini_model] + [n for n in (sorted(stable if names else [], reverse=True) + lite) if n != _gemini_model][:3]
+    lite_sorted = sorted(lite, reverse=True)
+    rest = [n for n in sorted(stable if names else [], reverse=True) if n != _gemini_model]
+    _gemini_candidates = [_gemini_model] + [n for n in lite_sorted[:1] + rest[:1] + lite_sorted[1:2] if n != _gemini_model]
     return _gemini_model
 
 
@@ -187,9 +189,7 @@ def _call_model(system: str, user: str):
         return "".join(b.get("text", "") for b in r.json()["content"]), f"anthropic:{ANTHROPIC_MODEL}"
     if os.environ.get("GEMINI_API_KEY"):
         body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}],
-                "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2,
-                                     # short, cited answers don't need hidden "thinking", which is what makes flash models slow
-                                     "thinkingConfig": {"thinkingBudget": 0}}}
+                "generationConfig": {"maxOutputTokens": 1200, "temperature": 0.2}}
         import time
         first = _pick_gemini_model()
         tried, last = [], None
@@ -197,12 +197,21 @@ def _call_model(system: str, user: str):
         for model in (_gemini_candidates or [first]):
             if time.monotonic() > deadline:
                 break
+            # short, cited answers don't need hidden "thinking", which is what makes flash models slow.
+            # Gemini 3+ uses thinkingLevel; 2.x uses thinkingBudget.
+            m = re.match(r"gemini-(\d+)", model)
+            if m and int(m.group(1)) >= 3:
+                body["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "low"}
+            else:
+                body["generationConfig"]["thinkingConfig"] = {"thinkingBudget": 0}
             for attempt in range(2):
                 remaining = max(5.0, deadline - time.monotonic())
                 try:
-                    r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=min(40.0, remaining))
+                    r = httpx.post(f"{GEMINI_BASE}/models/{model}:generateContent", headers=_gemini_headers(), json=body, timeout=min(20.0, remaining))
                 except httpx.TimeoutException:
-                    r = httpx.Response(503, json={"error": {"message": f"{model} took too long to answer"}}, request=httpx.Request("POST", GEMINI_BASE))
+                    # too slow: don't wait twice on the same model, go straight to the faster backup
+                    r = httpx.Response(504, json={"error": {"message": f"{model} took too long to answer"}}, request=httpx.Request("POST", GEMINI_BASE))
+                    break
                 if r.status_code == 400 and "thinking" in r.text.lower() and "thinkingConfig" in body["generationConfig"]:
                     body["generationConfig"].pop("thinkingConfig")  # this model can't switch thinking off: ask again without the setting
                     continue
@@ -216,7 +225,7 @@ def _call_model(system: str, user: str):
                 os.environ.pop("AI_MODEL_GEMINI", None)
                 last = r
                 continue
-            if r.status_code in (429, 500, 503, 400):
+            if r.status_code in (429, 500, 503, 504, 400):
                 last = r
                 continue
             r.raise_for_status()
