@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { AREA_ORDER, Any, Num, Ref, api, can, day, dt, fmtVal, money, post, signed, useApp, useLoad } from '../lib'
 import { AdjCard, CATEGORIES, CATEGORY_LABEL, NoteCard, QuestionCard, useActions } from '../trace'
+import { openAsk } from '../ask'
 
 // ---------------------------------------------------------------- Review
 export function Review() {
@@ -117,6 +118,7 @@ export function Filing() {
       <div className="card"><h3 style={{ marginTop: 0 }}>Late payment (federal)</h3><p className="small">Balance on the workpaper return: <b className="num">{money(bal)}</b>. Paid 7/20/2026 vs due 4/15/2026 ({months} months): failure-to-pay ≈ <b className="num">{money(pr.ftp)}</b>, interest ≈ <b className="num">{money(pr.int)}</b> (0.5%/month, 7%/yr). {bal === 0 && 'The corrected return shows an overpayment, so the scripted 7/20 "balance paid" event and the 196/276 assessment would not occur — flagged for the partner.'}</p></div>
       <div className="card"><h3 style={{ marginTop: 0 }}>Records</h3><div className="grid" style={{ gap: 6 }}>
         <a className="btn" href="/api/export/notice/N-2025-L566" target="_blank" onClick={e => { e.preventDefault(); openAs('/api/export/notice/N-2025-L566') }}>Answer Letter 566 (2028) — self-contained record</a>
+        <button className="btn" onClick={() => openAsk({ mode: 'draft_notice_response' })}>✦ Draft the Letter 566 narrative (AI, cited)</button>
         <a className="btn" href="#" onClick={e => { e.preventDefault(); openAs('/api/export/client-copy') }}>Client copy</a>
         <a className="btn" href="#" onClick={e => { e.preventDefault(); openAs('/api/export/workpaper') }}>Full workpaper record</a>
         <a className="btn" href="#" onClick={e => { e.preventDefault(); openAs('/api/export/rollforward', true) }}>Roll forward to 2026 (JSON)</a></div></div>
@@ -138,7 +140,7 @@ const humanize = (t: string) => ({ 'adjustment.proposed': 'proposed an adjustmen
   'note.reopened': 'reopened a note', 'question.asked': 'asked a question', 'question.answered': 'answered a question', 'signoff.signed': 'signed off', 'finding.accepted': 'accepted a finding',
   'finding.dismissed': 'dismissed a finding', 'finding.reopened': 'reopened a finding', 'time.logged': 'logged time', 'file.attached': 'attached a file', 'link.added': 'linked items',
   'view.sensitive': 'viewed sensitive data', 'batch.undo': 'undid a batch', 'batch.redo': 'redid a batch', 'fact.corrected': 'corrected a fact', 'standards.updated': 'changed firm standards',
-  'assignment.set': 'assigned work' } as Record<string, string>)[t] || t.replace('filing.', 'filing: ').replace(/_/g, ' ')
+  'assignment.set': 'assigned work', 'ai.answered': 'asked the assistant' } as Record<string, string>)[t] || t.replace('filing.', 'filing: ').replace(/_/g, ' ')
 
 export function Timeline() {
   const { st, boot, name, arg, person, send, go } = useApp()

@@ -13,7 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import exports, seed, store, views
+from . import ai, exports, seed, store, views
 from .packet import AREAS, FORM_NAMES, get_packet
 from .state import VERIFY_TYPES_DEFAULT, State, short_hash
 
@@ -273,7 +273,7 @@ def bootstrap(req: Request):
         "firm": {"name": d["firm"]["name"], "deadlines": d["firm"]["deadlines"], "identity": d["firm"]["firm_identity"], "assignment": s.assignment},
         "standards": s.standards, "budget": s.budget, "client": d["client"], "timeline": d["timeline"],
         "agency": d["tax_agency_records"], "what_if": d["what_if"], "rates": P.rates,
-        "engine_rules": d["engine_reference"]["rules"],
+        "engine_rules": d["engine_reference"]["rules"], "ai": ai.available(),
     })
 
 
@@ -370,6 +370,18 @@ def get_compare(req: Request, a: str = "v2", b: str = "v3"):
 def get_search(req: Request, q: str):
     _staff_only(req)
     return out(req, views.search(state(), q))
+
+
+@app.post("/api/ask")
+async def post_ask(req: Request):
+    pid = _staff_only(req)
+    body = await req.json()
+    s = state()
+    res = ai.answer(s, body.get("question", ""), body.get("mode", "ask"), body.get("focus"))
+    # Every AI call is on the record: who asked, what, which model, which sources it cited.
+    store.append(pid, "ai.answered", {"question": body.get("question", "")[:500], "mode": res["mode"], "model": res["model"],
+                                      "citations": res["citations"], "unverified": res["unverified"], "answer": res["answer"][:4000]})
+    return out(req, res)
 
 
 @app.post("/api/whatif")

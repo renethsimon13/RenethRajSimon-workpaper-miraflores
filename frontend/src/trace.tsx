@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Any, Ref, Sev, api, can, day, dt, fmtVal, money, registerTrace, signed, useApp, useLoad } from './lib'
+import { openAsk } from './ask'
 
 export const CATEGORY_LABEL: Record<string, string> = {
   interest: 'Interest / dividends', stcg: 'Short-term gain', ltcg: 'Long-term gain', schc_profit: 'Business income (Sch C)', schc_expense: 'Business expense (Sch C)',
@@ -68,6 +69,7 @@ function Actions({ target, line, base }: { target: string; line?: string; base?:
     {can(role, 'ask') && <button className="btn sm" onClick={() => a.question(target)}>? Ask</button>}
     <button className="btn sm" onClick={() => a.attach(target)}>⇪ Attach</button>
     <button className="btn sm" onClick={() => a.link(target)}>⛓ Link</button>
+    {role !== 'client' && <button className="btn sm" onClick={() => openAsk({ focus: target, question: 'Explain this item and what still needs checking.' })}>✦ Ask about this</button>}
   </div>
 }
 

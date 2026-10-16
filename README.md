@@ -23,6 +23,8 @@ A working workpaper for one complex household's 2025 return, built from the purp
 | Questions that become evidence, assignments, deadlines, notifications, time vs budget, client portal & 8879 | People · client view |
 | Extension, e-file rejection and fix, freeze, amendment, notice-response record, client copy, roll-forward | Filing & after |
 | Firm standards (editable by the administrator), masking with view log, retention, search | Firm · search bar |
+| **Ask the workpaper** (AI): grounded answers, client-question and notice drafts; every sentence cites workpaper evidence, unknown citations flagged, every call logged, nothing saved without a person | ✦ Ask · trace drawer · Findings · Filing |
+| Day-one guided tour for a new hire | ? Tour |
 
 Use the **Viewing as** switcher to act as preparer (Priya), uncleared preparer (Marcus), reviewer (Daniel), partner (Helen), administrator (Jo), quality reviewer (Sam) or the clients (Ngozi, Erik). Rules are enforced by the server, not the UI.
 
@@ -46,7 +48,8 @@ Or build once and let FastAPI serve everything from one URL: `cd frontend && npm
 
 1. **Database:** create a free project on [Neon](https://neon.tech) and copy the `postgresql://…` connection string.
 2. **Web service:** on [Render](https://render.com) → New → Blueprint → this repo (uses `render.yaml`, Docker, free plan). Set `DATABASE_URL` to the Neon string.
-3. Open the service URL. The first load after idle takes ~30–60 s (free tier). The demo season loads automatically on an empty database; **Firm → Reset** returns to the bare packet.
+3. Optional AI: in Render → Environment add `ANTHROPIC_API_KEY` (or `GEMINI_API_KEY` for Google's free tier). Without a key the assistant shows the cited evidence only.
+4. Open the service URL. The first load after idle takes ~30–60 s (free tier). The demo season loads automatically on an empty database; **Firm → Reset** returns to the bare packet.
 
 ## Layout
 

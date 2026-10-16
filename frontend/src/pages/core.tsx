@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { AREA_ORDER, Any, Num, Ref, Sev, can, dt, fmtVal, money, signed, useApp, useLoad } from '../lib'
 import { DocView, useActions } from '../trace'
+import { openAsk } from '../ask'
 
 // ---------------------------------------------------------------- Overview
 export function Overview() {
@@ -102,6 +103,7 @@ export function Findings() {
         {f.status === 'open' && can(role, 'propose') && f.severity !== 'info' && <><button className="btn sm pri" onClick={() => accept([f])}>{f.proposed.length ? 'Accept & propose adjustments' : 'Accept'}</button><button className="btn sm" onClick={() => dismiss(f)}>Dismiss…</button></>}
         {f.status !== 'open' && can(role, 'propose') && <button className="btn sm" onClick={() => send({ type: 'finding.reopened', payload: { id: f.id } }, 'Finding reopened')}>Reopen</button>}
         <NoteBtn target={'finding:' + f.id} />
+        {f.status === 'open' && f.severity !== 'info' && <button className="btn sm" onClick={() => openAsk({ mode: 'draft_client_question', focus: 'finding:' + f.id, question: f.title })}>✦ Draft client question</button>}
         {f.adjustments.length > 0 && <button className="btn sm" onClick={() => go('review', 'adjustments')}>{f.adjustments.length} adjustment(s) →</button>}
       </div>
       <FindingNotes id={f.id} />

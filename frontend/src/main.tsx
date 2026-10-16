@@ -6,6 +6,8 @@ import './trace'
 import { Documents, Findings, Overview, ReturnPage } from './pages/core'
 import { Schedules } from './pages/schedules'
 import { ClientPortal, Compare, Filing, Firm, People, Review, Timeline } from './pages/work'
+import { Tour, startTour } from './tour'
+import { AskPanel, openAsk } from './ask'
 
 const NAV: [string, string, string][] = [
   ['Work', 'overview', 'Overview'], ['Work', 'findings', 'Findings'], ['Work', 'review', 'Review'], ['Work', 'people', 'People'],
@@ -43,6 +45,8 @@ function Shell() {
           {res.length > 0 && <div className="results">{res.map((r, i) => <div key={i} onClick={() => pick(r)}><span className="chip">{r.type}</span> {r.title} <span className="muted small">{String(r.sub).slice(0, 60)}</span></div>)}</div>}</div>}
         <span className="sp" />
         {!client && st.changes.count > 0 && <button className="chip acc" onClick={() => go('timeline', 'since')}>{st.changes.count} changes since you last looked</button>}
+        {!client && <button className="btn sm pri" onClick={() => openAsk()} title="Ask the workpaper">✦ Ask</button>}
+        {!client && <button className="btn sm" onClick={startTour} title="Day-one tour">? Tour</button>}
         <span className="live"><i style={{ background: live ? 'var(--ok)' : '#c9ccd1' }} />{live ? 'live' : 'offline'}</span>
         <div className="who"><span className="small muted">Viewing as</span>
           <select value={person} onChange={e => { setPerson(e.target.value); if (boot.people.find((p: Any) => p.id === e.target.value)?.kind === 'client') go('overview') }}>
@@ -52,6 +56,8 @@ function Shell() {
         page === 'findings' ? <Findings /> : page === 'return' ? <ReturnPage /> : page === 'documents' ? <Documents /> : page === 'schedules' ? <Schedules /> :
           page === 'review' ? <Review /> : page === 'people' ? <People /> : page === 'filing' ? <Filing /> : page === 'timeline' ? <Timeline /> :
             page === 'compare' ? <Compare /> : page === 'firm' ? <Firm /> : <Overview />}</div>
+      {!client && <Tour />}
+      {!client && <AskPanel />}
     </div>
   </div>
 }

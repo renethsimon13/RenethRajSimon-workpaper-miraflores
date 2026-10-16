@@ -115,3 +115,10 @@ button.chip { cursor: pointer; } button.chip:hover { filter: brightness(.95); }
 .strike { text-decoration: line-through; color: var(--ink-3); }
 .client-hero { background: linear-gradient(135deg, #0f5c63, #15292b); color: #fff; border-radius: 12px; padding: 22px 24px; }
 .client-hero .num { font-size: 26px; font-weight: 600; }
+.tour { position: fixed; right: 20px; bottom: 20px; width: min(420px, 92vw); background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.18); padding: 14px 16px; z-index: 45; }
+.ask { position: fixed; right: 20px; bottom: 20px; width: min(520px, 94vw); max-height: 78vh; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.18); z-index: 44; }
+.ask .hd { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+.ask .bd { padding: 12px 14px; overflow: auto; flex: 1; }
+.ask .ft { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; gap: 6px; }
+.ask textarea { flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; resize: none; }
+.ans { white-space: pre-wrap; line-height: 1.55; }

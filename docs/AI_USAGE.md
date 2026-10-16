@@ -24,6 +24,10 @@ I built this with Claude (Anthropic) as a pair working in an agentic environment
 
 - *(Fill in: e.g. spot-checked the RSU basis, 1099-K and mileage findings against the source pages in the app; walked the filing flow as each role; read the core-idea page and errors list end to end.)*
 
+## AI inside the product
+
+The "Ask the workpaper" panel answers and drafts only from retrieved workpaper evidence. Its citations are verified against that evidence, it saves nothing without a person, and every call is logged. I chose to keep AI out of error detection, which needs to be deterministic, and to put it where wording and synthesis help: explaining a number, drafting a client question, drafting the notice response.
+
 ## Where AI was not trusted
 
 - **The return.** The engine's numbers are never edited in place. Every change is a human-approved adjustment with a reason.

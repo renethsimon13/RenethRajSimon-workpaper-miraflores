@@ -43,7 +43,14 @@ The event types are `adjustment.proposed/approved/reversed`, `verification.added
 ## Decisions and trade-offs
 
 - **The engine can't be re-run.** Adjustments propagate exactly through every line built by plain arithmetic (sums and carries), so Schedule C, AGI and Schedule A all move. A line whose rule is a tax computation (tax, AMT, phase-outs, caps) is marked *pending engine recompute*, never guessed. Return totals are the engine total plus each approved adjustment's effect at the packet's per-dollar rates. Where the packet has an engine what-if, the exact figure is used instead (for example the HVAC capitalization). The UI says plainly that large changes cross thresholds (CTC phase-out, SALT cap, QBI) and the engine recompute is final.
-- **Checks are deterministic code, not an LLM.** They need to be auditable and repeatable, and a reviewer must be able to see *why* something was flagged. A language model would fit elsewhere: drafting client questions and summarizing notices, with a human approving.
+- **Checks are deterministic code, not an LLM.** They need to be auditable and repeatable, and a reviewer must be able to see *why* something was flagged.
+- **The language model is used where judgment and wording matter: "Ask the workpaper".** It is fenced in four ways:
+  1. **Retrieval first.** It sees only evidence pulled from this workpaper (lines with their inputs and sources, document pages, findings, client answers), each with a stable id.
+  2. **Citations are checked.** Every sentence must cite one of those ids. After generation, any id that wasn't in the evidence is flagged "unverified" in the answer.
+  3. **It writes nothing.** Drafts become a note or a client question only when a person clicks save or send.
+  4. **Every call is logged** as an event: who asked, what, which model, and which ids it cited.
+
+  Without an API key it falls back to showing the retrieved evidence. Tests cover the fallback, the flagging of a fabricated citation, and access.
 - **Rules are enforced on the server.** These are: no reviewing your own work, a partner over $1,000 of tax effect, an authority on every judgment, blocking review notes, the freeze at filing, and client approval tied to the return hash. The role switcher only chooses who you are; the server decides what you may do.
 - **Masking happens at the response boundary.** Every API response is masked. A cleared person can reveal one value at a time, and every reveal or refused attempt is logged. The uncleared preparer (Marcus) can't reveal anything.
 - **Simulated documents use a swappable contract.** A page is served as `{render, anchors}`. Today the render is the printed text and anchors are character offsets. A real PDF swaps in an image URL with bounding boxes from the same `position` fields; the trace, landed-on lists and highlights don't change.

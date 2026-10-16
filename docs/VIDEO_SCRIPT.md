@@ -35,7 +35,14 @@ Record the screen at 1440×900 with the deployed link. Before you start, open **
 - People: a question to the client, and the client's answer kept as evidence.
 - Switch to **Marcus** (no clearance) → Firm → reveal an SSN: refused and logged. Switch to **Jo** (admin): show the view log.
 
-## 5:15 — Schedules (45s)
+## 5:00 — Ask the workpaper (30s)
+
+- Click **✦ Ask** → "Why did Schedule C gross receipts change?" Every sentence carries a clickable citation, and anything cited outside the evidence would be flagged red.
+- On a finding, click **✦ Draft client question** → **Send to client**. A person always approves before anything is saved.
+- "It's logged on the timeline like every other action."
+- Mention the **? Tour** for a new hire's first day.
+
+## 5:30 — Schedules (45s)
 
 Sales: 282 lots grouped and reconciled to the broker statements; the Meridian difference is explained. Books to tax foots to the engine. Then the state split, basis by year (the 2023 K-1 filled the gap) and prior preparer vs us.
 
