@@ -140,7 +140,8 @@ def check_rsu_basis(p: Packet):
     sup = p.documents["D11"]["pages"][1]["printed_content"]
     lots = re.findall(r"Lot (RSU-\d+): (\d+) sh acquired (\d\d)/(\d\d)/(\d{4}) .*?adjusted basis ([\d,.]+)", sup)
     lines = p.lines[p.current_version]
-    proposed, refs, total = [], [R("doc", "D11", page=2), R("ev", "ev-0012")], 0.0
+    blanks = [e for e in p.values_by_doc.get("D28", []) if e["field"].endswith("_basis") and e["text_as_read"] == ""]
+    proposed, refs, total = [], [R("ev", e["id"], doc="D28", page=e["page"]) for e in blanks] + [R("doc", "D11", page=2), R("ev", "ev-0012")], 0.0
     for lot, sh, mm, dd, yy, basis in lots:
         acq = f"{yy}-{mm}-{dd}"
         for l in lines.values():
